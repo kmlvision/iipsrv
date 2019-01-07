@@ -25,8 +25,7 @@ RUN apt-get update -qq && \
       psmisc \
       software-properties-common \
       nginx && \
-    apt-get -y build-dep iipimage-server && \
-    rm -rf /var/lib/apt/lists/*
+    apt-get -y build-dep iipimage-server
 
 # build IIP Image server from source repository
 WORKDIR /usr/src/iipsrv
