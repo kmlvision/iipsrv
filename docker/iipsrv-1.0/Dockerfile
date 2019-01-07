@@ -2,6 +2,9 @@ FROM ubuntu:16.04
 
 LABEL MAINTAINER="KML VISION, devops@kmlvision.com"
 
+ENV LANG C.UTF-8
+ENV DEBIAN_FRONTEND noninteractive
+
 # install build deps
 RUN apt-get update -qq && \
     apt-get -qq -y install \
