@@ -6,9 +6,9 @@ ENV LANG C.UTF-8
 ENV DEBIAN_FRONTEND noninteractive
 
 # install build deps
-RUN apt-get update -q && \
-    apt-get -q -y install --no-install-recommends \
-      apt-utils \
+RUN sed -Ei 's/^# deb-src /deb-src /' /etc/apt/sources.list && \
+    apt-get update -qq && \
+    apt-get -qq -y install \
       build-essential \
       autoconf \
       autoconf-archive \
@@ -29,12 +29,12 @@ RUN apt-get update -q && \
       psmisc \
       software-properties-common \
       nginx && \
-    apt-get -y build-dep iipimage-server
+    apt-get -y build-dep iipimage
 
 WORKDIR /usr/src/iipsrv
 # copy the source
 COPY ./ /usr/src/iipsrv
-RUN sh autogen.sh && ./configure --enable-openjpeg && make
+RUN sh autogen.sh && ./configure && make
 RUN cp ./src/iipsrv.fcgi /usr/local/bin/iipsrv.fcgi
 RUN ldconfig -v
 

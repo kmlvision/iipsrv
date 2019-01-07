@@ -6,7 +6,8 @@ ENV LANG C.UTF-8
 ENV DEBIAN_FRONTEND noninteractive
 
 # install build deps
-RUN apt-get update -qq && \
+RUN sed -Ei 's/^# deb-src /deb-src /' /etc/apt/sources.list && \
+    apt-get update -qq && \
     apt-get -qq -y install \
       build-essential \
       autoconf \
@@ -28,11 +29,11 @@ RUN apt-get update -qq && \
       psmisc \
       software-properties-common \
       nginx && \
-    apt-get -y build-dep iipimage-server
+    apt-get -y build-dep iipimage
 
 # build IIP Image server from source repository
 WORKDIR /usr/src/iipsrv
-RUN git clone https://github.com/kmlvision/iipsrv.git . && git checkout tags/iipsrv-1.0 && sh autogen.sh && ./configure --enable-openjpeg && make
+RUN git checkout tags/iipsrv-1.0 && sh autogen.sh && ./configure && make
 RUN cp ./src/iipsrv.fcgi /usr/local/bin/iipsrv.fcgi
 RUN ldconfig -v
 
