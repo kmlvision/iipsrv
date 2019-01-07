@@ -1,4 +1,4 @@
-FROM ubuntu:16.04 AS builder
+FROM ubuntu:16.04
 
 LABEL MAINTAINER="KML VISION, devops@kmlvision.com"
 
@@ -10,6 +10,7 @@ RUN apt-get update -qq && \
       autoconf-archive \
       automake \
       openssl \
+      locate \
       libssl-dev \
       net-tools \
       nano \
@@ -21,6 +22,8 @@ RUN apt-get update -qq && \
       libssl-dev \
       libtiff5-dev \
       pkg-config \
+      psmisc \
+      software-properties-common \
       nginx && \
     apt-get -y build-dep iipimage-server && \
     rm -rf /var/lib/apt/lists/*
@@ -32,9 +35,9 @@ RUN cp ./src/iipsrv.fcgi /usr/local/bin/iipsrv.fcgi
 RUN ldconfig -v
 
 # set nginx config
-COPY docker/nginx.conf /etc/nginx/nginx.conf
+COPY nginx.conf /etc/nginx/nginx.conf
 # copy entrypoint
-COPY docker/start_iipsrv.sh /entrypoint.sh
+COPY start_iipsrv.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 WORKDIR /
