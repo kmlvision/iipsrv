@@ -2,7 +2,7 @@
 
     IIIF Request Command Handler Class Member Function
 
-    Copyright (C) 2014-2016 Ruven Pillay
+    Copyright (C) 2014-2019 Ruven Pillay
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -184,16 +184,14 @@ void IIIF::run( Session* session, const string& src )
 
     // Need to keep track of maximum allowable image export sizes
     unsigned int max = session->view->getMaxSize();
-    unsigned int numUsableResolutions = 1;
 
     for ( int i = numResolutions - 2; i > 0; i-- ){
       unsigned int w = (*session->image)->image_widths[i];
       unsigned int h = (*session->image)->image_heights[i];
       // Only advertise images below our max size value
       if( (max == 0) || (w < max && h < max) ){
-	infoStringStream << "," << endl
-			 << "     { \"width\" : " << w << ", \"height\" : " << h << " }";
-	numUsableResolutions++;
+        infoStringStream << "," << endl
+        << "     { \"width\" : " << w << ", \"height\" : " << h << " }";
       }
     }
 
@@ -202,8 +200,8 @@ void IIIF::run( Session* session, const string& src )
                      << "     { \"width\" : " << tw << ", \"height\" : " << th
                      << ", \"scaleFactors\" : [ 1"; // Scale 1 is original image
 
-    for ( unsigned int i = 1; i < numUsableResolutions; i++ ){
-      infoStringStream << ", " << pow(2.0, (double)i);
+    for ( unsigned int i = 1; i < numResolutions; i++ ){
+      infoStringStream << ", " << (1<<i);
     }
 
     infoStringStream << " ] }" << endl
@@ -211,7 +209,7 @@ void IIIF::run( Session* session, const string& src )
                      << "  \"profile\" : [" << endl
                      << "     \"" << IIIF_PROFILE << "\"," << endl
                      << "     { \"formats\" : [ \"jpg\" ]," << endl
-                     << "       \"qualities\" : [ \"native\",\"color\",\"gray\" ]," << endl
+                     << "       \"qualities\" : [ \"native\",\"color\",\"gray\",\"bitonal\" ]," << endl
                      << "       \"supports\" : [\"regionByPct\",\"regionSquare\",\"sizeByForcedWh\",\"sizeByWh\",\"sizeAboveFull\",\"rotationBy90s\",\"mirroring\"]," << endl
 		     << "       \"maxWidth\" : " << max << "," << endl
 		     << "       \"maxHeight\" : " << max << "\n     }" << endl
@@ -489,6 +487,9 @@ void IIIF::run( Session* session, const string& src )
       }
       else if ( quality == "grey" || quality == "gray" ){
         session->view->colourspace = GREYSCALE;
+      }
+      else if ( quality == "bitonal" ){
+        session->view->colourspace = BINARY;
       }
       else{
         throw invalid_argument( "unsupported quality parameter - must be one of native, color or grey" );
