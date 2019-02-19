@@ -31,9 +31,8 @@ RUN sed -Ei 's/^# deb-src /deb-src /' /etc/apt/sources.list && \
       nginx && \
     apt-get -y build-dep iipimage
 
-# build IIP Image server from source repository
 WORKDIR /usr/src/iipsrv
-RUN git checkout tags/iipsrv-1.0 && sh autogen.sh && ./configure && make
+RUN git clone https://github.com/kmlvision/iipsrv.git . && git checkout tags/iipsrv-1.0 && sh autogen.sh && ./configure && make
 RUN cp ./src/iipsrv.fcgi /usr/local/bin/iipsrv.fcgi
 RUN ldconfig -v
 
