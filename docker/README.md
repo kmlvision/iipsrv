@@ -21,6 +21,7 @@ docker push kmlvision/iipsrv:<version>
 ## Version 1.1.0
 Features:
 - CORS disabled
+- health check API
 
 ## Version 1.0.0
 Features:
