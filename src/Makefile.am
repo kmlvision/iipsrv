@@ -59,6 +59,7 @@ iipsrv_fcgi_SOURCES = \
 			ICC.cc \
 			CVT.cc \
 			Zoomify.cc \
+            ZoomifyBlend.cc \
 			DeepZoom.cc \
 			SPECTRA.cc \
 			PFL.cc \

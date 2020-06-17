@@ -135,7 +135,6 @@ void IIPSignalHandler( int signal )
 
 int main( int argc, char *argv[] )
 {
-
   IIPcount = 0;
   int i;
 
@@ -351,7 +350,7 @@ int main( int argc, char *argv[] )
       // Make sure the command is one of our supported protocols: "IIP", "IIIF", "Zoomify", "DeepZoom"
       string prtcl = protocol;
       transform( prtcl.begin(), prtcl.end(), prtcl.begin(), ::tolower );
-      if( prtcl == "iip" || prtcl == "iiif" || prtcl == "zoomify" || prtcl == "deepzoom" ){
+      if( prtcl == "iip" || prtcl == "iiif" || prtcl == "zoomify" || prtcl == "zoomifyblend" || prtcl == "deepzoom" ){
 	supported_protocol = true;
       }
 

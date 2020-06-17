@@ -301,6 +301,13 @@ class Zoomify : public Task {
 };
 
 
+/// Zoomify Request Command for blending multi-channels
+class ZoomifyBlend : public Task {
+public:
+    void run( Session* session, const std::string& argument );
+};
+
+
 /// SPECTRA Request Command
 class SPECTRA : public Task {
  public:
