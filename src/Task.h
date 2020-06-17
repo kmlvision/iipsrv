@@ -26,6 +26,7 @@
 
 #include <string>
 #include <fstream>
+#include <vector>
 #include "IIPImage.h"
 #include "IIPResponse.h"
 #include "JPEGCompressor.h"
@@ -65,6 +66,8 @@ typedef HASHMAP <std::string,IIPImage> imageCacheMapType;
 /// Structure to hold our session data
 struct Session {
   IIPImage **image;
+  std::vector<IIPImage*> images;  // in case for blending multiple tiles
+
   JPEGCompressor* jpeg;
 #ifdef HAVE_PNG
   PNGCompressor* png;
@@ -88,6 +91,21 @@ struct Session {
 #endif
 
 };
+
+typedef struct
+{
+  const char* single_channel[1] = {"00FF00"};  // green
+  const char* two_channel[2] = {"00FF00", "FF0000" };  // green, red
+  const char* three_channel[3] = {"0000FF", "00FF00", "FF0000" };  // blue, green, red
+}DefaultColors;
+
+typedef struct
+{
+  unsigned int idx;  // temporarily define here
+  const char* lut;  // colormap string or HEX-code
+  unsigned int min;  // not used yet
+  unsigned int max;  // not used yet
+}BlendingSetting;
 
 
 
@@ -305,6 +323,9 @@ class Zoomify : public Task {
 class ZoomifyBlend : public Task {
 public:
     void run( Session* session, const std::string& argument );
+
+    // TODO: doc
+    void send(Session* session, int resolution, int tile, const std::vector<BlendingSetting> &blending_settings);
 };
 
 
