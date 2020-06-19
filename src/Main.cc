@@ -535,10 +535,12 @@ int main( int argc, char *argv[] )
     response.setCORS( cors );
     response.setCacheControl( cache_control );
 
+    // create Session variable outside of try block, so that we can clear the image memory afterwards
+    Session session;
+
     try{
 
       // Set up our session data object
-      Session session;
       session.image = &image;
       session.response = &response;
       session.view = &view;
@@ -858,7 +860,12 @@ int main( int argc, char *argv[] )
       delete task;
       task = NULL;
     }
-    delete image;
+
+    // this deletes any images loaded as well as the local 'image' pointer
+    for ( int i = 0; i < session.images.size(); ++i ) {
+      delete session.images[i];
+    }
+
     image = NULL;
     IIPcount ++;
 
