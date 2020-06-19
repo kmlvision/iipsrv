@@ -44,7 +44,8 @@ void ZoomifyBlend::run( Session* session, const std::string& argument ){
   std::vector<BlendingSetting> blend_settings;
   DefaultColors def_colors;
 
-  int chns[] = {6, 10, 27};
+  //int chns[] = {6, 10, 27};
+  int chns[] = {0, 1, 2};
 
   for(int i = 0; i < 3; ++i)  // generate dummy values for testing
   {
@@ -75,7 +76,7 @@ void ZoomifyBlend::run( Session* session, const std::string& argument ){
   else
     prefix = argument.substr( 0, argument.find( "TileGroup" )-1 );
 
-  prefix = "/channel"; // TODO: hardcoded for now
+  prefix = "/cells_pyr_"; // TODO: hardcoded for now
 
   if( session->loglevel >= 4 ) (*session->logfile) << "ZoomifyBlend :: run() :: prefix:\n" << prefix << "\n" << endl;
 
@@ -92,7 +93,7 @@ void ZoomifyBlend::run( Session* session, const std::string& argument ){
 
     strcpy(filename, prefix.c_str());
     strcat(filename, idx_as_str);
-    strcat(filename, ".pyr.tif"); // TODO: get from command?
+    strcat(filename, ".tif"); // TODO: get from command?
     if( session->loglevel >= 5 ) (*session->logfile) << "ZoomifyBlend :: run() :: use filename: " << filename << endl;
 
     // read image to session, if cached, read from cache
@@ -192,6 +193,7 @@ void ZoomifyBlend::run( Session* session, const std::string& argument ){
 
 
   // Simply pass this on to our custom send command
+  //session->view->equalization = true;
   this->send( session, resolution, tile, blend_settings);  // TODO
 
 
@@ -200,6 +202,34 @@ void ZoomifyBlend::run( Session* session, const std::string& argument ){
     *(session->logfile) << "ZoomifyBlend :: run() :: Total command time " << command_timer.getTime() << " microseconds" << endl;
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -502,6 +532,7 @@ void ZoomifyBlend::send(Session* session, int resolution, int tile, const std::v
     }
 
     // Apply flip
+    //session->view->flip = i; // TODO: remove!
     if( session->view->flip != 0 ){
       Timer flip_timer;
       if( session->loglevel >= 5 ){
@@ -577,7 +608,7 @@ void ZoomifyBlend::send(Session* session, int resolution, int tile, const std::v
         //auto ab = b / 255.0;
 
         // alpha blend into the final tile
-        rowp[x * out_channels + tidx] = static_cast<uint8_t>(std::min(255.0, std::max(0.0, r + (1 - ar) * rowp[x * out_channels])));
+        rowp[x * out_channels + tidx] = static_cast<uint8_t>(gv); //std::min(255.0, std::max(0.0, r + (1 - ar) * rowp[x * out_channels])));
         //rowp[x * out_channels + 1] = static_cast<uint8_t>(std::min(255.0, std::max(0.0, g + (1 - ag) * rowp[x * out_channels + 1])));
         //rowp[x * out_channels + 2] = static_cast<uint8_t>(std::min(255.0, std::max(0.0, b + (1 - ab) * rowp[x * out_channels + 2])));
       }
