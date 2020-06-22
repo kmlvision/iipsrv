@@ -97,8 +97,8 @@ typedef struct
   const char* single_channel[1] = {"00FF00"};  // green
   const char* two_channel[2] = {"00FF00", "FF0000" };  // green, red
   const char* three_channel[3] = {"0000FF", "00FF00", "FF0000" };  // blue, green, red
-  const char* four_channel[3] = {"0000FF", "00FF00", "FFFF00", "FF0000" };  // blue, green, yellow and red
-  const char* five_channel[3] = {"0000FF", "00FFFF", "00FF00", "FFFF00", "FF0000" };  // blue, cyan, green, yellow and red
+  const char* four_channel[4] = {"0000FF", "00FF00", "FFFF00", "FF0000" };  // blue, green, yellow and red
+  const char* five_channel[5] = {"0000FF", "00FFFF", "00FF00", "FFFF00", "FF0000" };  // blue, cyan, green, yellow and red
 }DefaultColors;
 
 typedef struct
