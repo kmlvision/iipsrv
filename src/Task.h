@@ -328,6 +328,8 @@ public:
 
     // TODO: doc
     void send(Session* session, int resolution, int tile, const std::vector<BlendingSetting> &blending_settings);
+
+    bool loadBlendingSettingsFromJSon(const char* string_to_parse);
 };
 
 

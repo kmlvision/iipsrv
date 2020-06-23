@@ -30,33 +30,143 @@
 #include <stdio.h>
 #include <sstream>
 #include <vector>
+#include <limits.h>
 
 #include "Task.h"
 #include "TileManager.h"
 #include "Transforms.h"
 #include "Tokenizer.h"
 
+#include <jansson.h> // used for parsing json strings
 
 using namespace std;
 
+struct blend_color {
+  uint8_t r, g, b;
+
+  static blend_color from_int(int color)
+  {
+    blend_color ret;
+    ret.r = (color & 0xFF0000) >> 16;
+    ret.g = (color & 0xFF00) >> 8;
+    ret.b = color & 0xFF;
+    return ret;
+  }
+};
+
+bool ZoomifyBlend::loadBlendingSettingsFromJSon(const char* string_to_parse)
+{
+  printf("got this string as input:\n%s\n\n", string_to_parse);
+
+  char* j_string = static_cast<char*>(malloc((strlen(string_to_parse)+1) * sizeof(char)));
+  // first, let's remove whitespaces
+  int s, d=0;
+  for (s=0; string_to_parse[s] != 0; s++)
+    if (string_to_parse[s] != ' ') {
+      j_string[d] = string_to_parse[s];
+      d++;
+    }
+  j_string[d] = 0; // null terminator
+
+  json_t* j_root;
+  json_error_t j_error;
+
+  printf("try parsing this string:\n%s\n\n", j_string);
+
+  j_root = json_loads(j_string, 0, &j_error);
+  if ( !j_root )
+  {
+    fprintf( stderr, "error: on line %d: %s\n", j_error.line, j_error.text );
+    return false;
+  }
+
+  const char* key;
+  json_t* value;
+  const char* sub_key;
+  json_t* sub_value;
+
+
+  void *iter = json_object_iter( j_root );
+  while( iter )
+  {
+    key = json_object_iter_key(iter);
+    value = json_object_iter_value(iter);
+
+    // iterate through next objects
+    void* sub_iter = json_object_iter(value);
+    while(sub_iter)
+    {
+      sub_key = json_object_iter_key(sub_iter);
+      sub_value = json_object_iter_value(sub_iter);
+      printf("Key: %s: subKey=%s, subValue=%s\n", key, sub_key, json_string_value(sub_value) ); // TODO: write as string!
+
+      sub_iter = json_object_iter_next(value, sub_iter);
+    }
+    printf("\n");
+    iter = json_object_iter_next(j_root, iter);
+  }
+
+  if(j_root)
+    json_decref(j_root);
+
+  free(j_string);
+
+  return true;
+}
+
 void ZoomifyBlend::run( Session* session, const std::string& argument ){
+  if (session->loglevel >= 3) (*session->logfile) << "ZoomifyBlend :: handler reached\n" << endl;
+
+  const char* tmp_command_string =
+          {"/cells_pyr.tif/TileGroup0/1-1-1.jpg&blend={2:{\"lut\":\"jet\",\"min\":0,\"max\":4095}, 3:{\"lut\":\"#FF112D\",\"min\":0,\"max\":4095}}"};
+
+  //const char* j_string = {"{\n\"2\":{\n\"lut\":\"jet\",\"min\":0,\"max\":4095\n},\n \"3\":{\n\"lut\":\"#FF112D\",\"min\":0,\"max\":4095\n}\n}\n"};
+
+  std::string json_string("{\n"
+                             "        \"2\":{\n"
+                             "                \"lut\": \"#00ff00\",\n"
+                             "                \"min\": \"0\",\n"
+                             "                \"max\": \"4095\"\n"
+                             "        }\n"
+                             "        \"3\":{\n"
+                             "                \"lut\": \"#ffffff\",\n"
+                             "                \"min\": \"0\",\n"
+                             "                \"max\": \"666\"\n"
+                             "        }\n"
+                             "}");
+
+  if (session->loglevel >= 3) (*session->logfile) << "ZoomifyBlend :: parsing json string\n" << endl;
+  if(!this-loadBlendingSettingsFromJSon(json_string.c_str()))
+  {
+    return;
+  }
+  if (session->loglevel >= 5) (*session->logfile) << "ZoomifyBlend :: successfuly parsed json string\n" << endl;
+
+
+
+
+
   // // TODO: hardcoded for now
-  std::vector<BlendingSetting> blend_settings;
+  std::vector<BlendingSetting> blend_settings;  // TODO: parse from json string
   DefaultColors def_colors;
 
   //int chns[] = {6, 10, 27};
-  int chns[] = {0, 1, 2};
+  const char* color_chns[3] = {"FFFF00", "00ffff", "0000ff" };
+  int chns[] = {2, 1, 0};//, 2};
+  int num_chns = 3;
 
-  for(int i = 0; i < 3; ++i)  // generate dummy values for testing
+  for(int i = 0; i < num_chns; ++i)  // generate dummy values for testing
   {
     BlendingSetting s;
     s.idx = chns[i];
-    s.lut = def_colors.three_channel[i];
+    //s.lut = def_colors.three_channel[i];
+    s.lut = color_chns[i];
+    s.min = 0;
+    s.max = 65535;
+    if(i == 2){ s.max = 65535 / 2;}
     blend_settings.push_back(s);
   }
 
-
-  if (session->loglevel >= 3) (*session->logfile) << "ZoomifyBlend :: handler reached" << endl;
   // if( session->loglevel >= 4 ) (*session->logfile) << "Argument string:\n" << argument << "\n" << endl;
 
   // Time this command
@@ -65,36 +175,37 @@ void ZoomifyBlend::run( Session* session, const std::string& argument ){
 
   // The argument is in the form ZoomifyBlend=TileGroup0/r-x-y.jpg where r is the resolution
   // number and x and y are the tile coordinates starting from the bottom left.
-  string prefix, suffix;
+  string cmd_filename_prefix,  suffix;
   suffix = argument.substr( argument.find_last_of( "/" )+1, argument.length() );
 
-  if( session->loglevel >= 4 ) (*session->logfile) << "ZoomifyBlend :: run() :: suffix:\n" << suffix << "\n" << endl;
+  if( session->loglevel >= 4 ) (*session->logfile) << "ZoomifyBlend :: run() :: suffix: " << suffix << "\n" << endl;
 
   // We need to extract the image path, which is not always the same
   if( suffix == "ImageProperties.xml" )
-    prefix = argument.substr( 0, argument.find_last_of( "/" ) );
-  else
-    prefix = argument.substr( 0, argument.find( "TileGroup" )-1 );
+    cmd_filename_prefix = argument.substr( 0, argument.find_last_of( "/" ) );
+  else {
+    //prefix = argument.substr( 0, argument.find( "TileGroup" )-1 );
+    cmd_filename_prefix = argument.substr(0, argument.find(".tif"));  // pattern: "/filename_X.tif, X... 0 to N (N... channel index)
+  }
+  //cmd_filename_prefix = "/cells_pyr_"; // TODO: hardcoded for now
+  // cmd_filename_prefix = "/channel"; // TODO: hardcoded for now
 
-  prefix = "/cells_pyr_"; // TODO: hardcoded for now
-
-  if( session->loglevel >= 4 ) (*session->logfile) << "ZoomifyBlend :: run() :: prefix:\n" << prefix << "\n" << endl;
-
+  if( session->loglevel >= 4 ) (*session->logfile) << "ZoomifyBlend :: run() :: cmd_filename_prefix: " << cmd_filename_prefix << "\n" << endl;
   // As we don't have an independent FIF request, we need to create it now
   FIF fif;
 
   // create a list of filenames and load images
-  for(unsigned int image_idx = 0; image_idx < 3; ++image_idx)  // TODO
+  for(unsigned int image_idx = 0; image_idx < num_chns; ++image_idx)  // TODO
   {
     char filename[128];
     char idx_as_str[8];
-    sprintf(idx_as_str, "%d", blend_settings[image_idx].idx);
+    sprintf(idx_as_str, "_%d", blend_settings[image_idx].idx);
 
 
-    strcpy(filename, prefix.c_str());
+    strcpy(filename, cmd_filename_prefix.c_str());
     strcat(filename, idx_as_str);
-    strcat(filename, ".tif"); // TODO: get from command?
-    if( session->loglevel >= 5 ) (*session->logfile) << "ZoomifyBlend :: run() :: use filename: " << filename << endl;
+    strcat(filename, ".tif");
+    if( session->loglevel >= 5 ) (*session->logfile) << "\nZoomifyBlend :: run() :: use filename: " << filename << endl;
 
     // read image to session, if cached, read from cache
     // add images to session->images vector
@@ -303,7 +414,7 @@ void ZoomifyBlend::send(Session* session, int resolution, int tile, const std::v
 
       // Calculate histogram
       image->histogram =
-              session->processor->histogram( thumbnail, image->max, image->min );  // TODO: use given min/max values?
+              session->processor->histogram( thumbnail, image->max, image->min );
 
       if( session->loglevel >= 4 ){
         *(session->logfile) << "ZoomifyBlend :: send :: Calculated histogram in "
@@ -354,11 +465,12 @@ void ZoomifyBlend::send(Session* session, int resolution, int tile, const std::v
       }
 
       // Make a copy of our max and min as we may change these
-      vector<float> min = image->min;
-      vector<float> max = image->max;
+      vector<float> min;
+      vector<float> max;
 
       // Change our image max and min if we have asked for a contrast stretch
-      if (session->view->contrast == -1) {
+      if (session->view->contrast == -1)
+      {
 
         // Find first non-zero bin in histogram
         unsigned int n0 = 0;
@@ -389,8 +501,12 @@ void ZoomifyBlend::send(Session* session, int resolution, int tile, const std::v
       }
 
       // Apply normalization and float conversion
+      // assign given min/max values for histogram stretching
+      min.push_back(blending_settings[i].min);
+      max.push_back(blending_settings[i].max);
       if (session->loglevel >= 4) {
-        *(session->logfile) << "ZoomifyBlend :: send :: Normalizing and converting to float";
+        *(session->logfile) << "ZoomifyBlend :: send :: Normalizing between [" << min[0] << ", " << max[0] <<
+        "] and converting to float";
         function_timer.start();
       }
       session->processor->normalize(rawtile, max, min);
@@ -532,7 +648,6 @@ void ZoomifyBlend::send(Session* session, int resolution, int tile, const std::v
     }
 
     // Apply flip
-    //session->view->flip = i; // TODO: remove!
     if( session->view->flip != 0 ){
       Timer flip_timer;
       if( session->loglevel >= 5 ){
@@ -568,10 +683,12 @@ void ZoomifyBlend::send(Session* session, int resolution, int tile, const std::v
   // 3. blend tiles by using colors/colormaps -> one output RGB tile
   const int out_channels = 3; // RGB channels
   const RawTile &tmp = raw_tiles[0];
+
   RawTile blended_tile( 0, tmp.resolution, tmp.hSequence, tmp.vSequence, tmp.width, tmp.height, 3, 8 );
   blended_tile.dataLength = blended_tile.width * blended_tile.height * out_channels;
   uint8_t *dst = new uint8_t[blended_tile.dataLength]();
   blended_tile.data = dst;  // this is cleaned up by raw tile
+
   const unsigned int dst_stride = blended_tile.width * out_channels;
   const unsigned int src_stride = blended_tile.width;
 
@@ -584,13 +701,38 @@ void ZoomifyBlend::send(Session* session, int resolution, int tile, const std::v
       *(session->logfile) << "ZoomifyBlend :: send :: BLENDING tile nr " << tidx << endl;
     }
 
+    const float img_min = (*session->images[tidx]).min[0];
+    const float img_max = (*session->images[tidx]).max[0];
+    const unsigned int bit_depth = (*session->images[tidx]).bpc;
+
+    if( session->loglevel >= 5 ){
+      *(session->logfile) << "ZoomifyBlend :: send :: original image BitDepth = " << bit_depth << endl;
+      *(session->logfile) << "ZoomifyBlend :: send :: original image Minimum  = " << img_min << endl;
+      *(session->logfile) << "ZoomifyBlend :: send :: original image Maximum  = " << img_max << endl;
+    }
+
     const RawTile &cur_tile = raw_tiles[tidx];
     const uint8_t *src = static_cast<const uint8_t*>(cur_tile.data);
-    //fcc_color color = blending_settings.lut[tidx];
+
+    // try to parse color code
+    blend_color b_color;
+    try {
+      if( session->loglevel >= 5 ){
+        *(session->logfile) << "ZoomifyBlend :: send :: try to parse color code: -> " << blending_settings[tidx].lut << endl;
+      }
+      int value = std::stoi( blending_settings[tidx].lut, nullptr, 16 );
+      if( session->loglevel >= 5 ){
+        *(session->logfile) << "ZoomifyBlend :: send :: color code successfully converted to int -> " << value << endl;
+      }
+      b_color = blend_color::from_int( value );
+    }
+    catch( std::exception& ) {
+      throw std::invalid_argument( "invalid color code to ZoomifyBlend!");// + blending_settings[tidx].lut );
+    }
 
     for( int y = 0; y < blended_tile.height; ++y )
     {
-      uint8_t *rowp = dst + y * dst_stride;
+      uint8_t *dst_row_p = dst + y * dst_stride;
 
       for( int x = 0; x < blended_tile.width; ++x )
       {
@@ -598,19 +740,25 @@ void ZoomifyBlend::send(Session* session, int resolution, int tile, const std::v
         auto gv = src[y * src_stride + x];
 
         // convert to color
-        auto r = static_cast<uint8_t>(gv);  // color.r * (gv / (std::pow(2.0, image.bpc) - 1)));
-        auto g = static_cast<uint8_t>(gv); // color.g * (gv / (std::pow(2.0, image.bpc) - 1)));
-        auto b = static_cast<uint8_t>(gv); //color.b * (gv / (std::pow(2.0, image.bpc) - 1)));
+        auto r = b_color.r * (gv / (std::pow(2, 8) - 1));
+        auto g = b_color.g * (gv / (std::pow(2, 8) - 1));
+        auto b = b_color.b * (gv / (std::pow(2, 8) - 1));
 
         // compute alpha
-        auto ar = r / 255.0;
-        //auto ag = g / 255.0;
-        //auto ab = b / 255.0;
+        //auto ar = r / 255.0f; //((r - img_min) / (img_max - img_min + 1)) / 255.0f;
+        //auto ag = g / 255.0f; //((g - img_min) / (img_max - img_min + 1)) / 255.0f;
+        //auto ab = b / 255.0f; // ((b - img_min) / (img_max - img_min + 1)) / 255.0f;
 
         // alpha blend into the final tile
-        rowp[x * out_channels + tidx] = static_cast<uint8_t>(gv); //std::min(255.0, std::max(0.0, r + (1 - ar) * rowp[x * out_channels])));
-        //rowp[x * out_channels + 1] = static_cast<uint8_t>(std::min(255.0, std::max(0.0, g + (1 - ag) * rowp[x * out_channels + 1])));
-        //rowp[x * out_channels + 2] = static_cast<uint8_t>(std::min(255.0, std::max(0.0, b + (1 - ab) * rowp[x * out_channels + 2])));
+        //rowp[x * out_channels + 0] = static_cast<uint8_t>(std::min(255.0f, std::max(0.0f, r + (1 - ag) * rowp[x * out_channels])));
+        //rowp[x * out_channels + 1] = static_cast<uint8_t>(std::min(255.0f, std::max(0.0f, g + (1 - ag) * rowp[x * out_channels + 1])));
+        //rowp[x * out_channels + 2] = static_cast<uint8_t>(std::min(255.0f, std::max(0.0f, b + (1 - ab) * rowp[x * out_channels + 2])));
+
+        // fill output array and clip value between 0...255
+        dst_row_p[x * out_channels    ] = static_cast<uint8_t>(std::min(255, std::max(0, static_cast<int>(r + dst_row_p[x * out_channels])))); //r * rowp[x * out_channels])));
+        dst_row_p[x * out_channels + 1] = static_cast<uint8_t>(std::min(255, std::max(0, static_cast<int>(g + dst_row_p[x * out_channels + 1]))));
+        dst_row_p[x * out_channels + 2] = static_cast<uint8_t>(std::min(255, std::max(0, static_cast<int>(b + dst_row_p[x * out_channels + 2]))));
+
       }
     }
   }
