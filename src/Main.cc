@@ -144,11 +144,12 @@ std::string getFCGIParamAsString(const char *name, const FCGX_Request* request) 
 }
 
 /**
- * TODO Note this is not thread safe due to the static allocation of the buffer.
+ * Get the content off a FCGI request.
+ *
+ * @param request pointer to the request object
+ * @return the request content, or an empty string, if there is no Content-Length header specified
  */
-// https://stackoverflow.com/questions/21731613/why-its-not-thread-safety-and-how-to-get-it-thread-safety
 std::string getRequestContent(const FCGX_Request* request) {
-
     // parse the content length as long
     char *contentLengthStr = FCGX_GetParam("CONTENT_LENGTH", request->envp);
     unsigned long contentLength = 0;
@@ -168,21 +169,23 @@ std::string getRequestContent(const FCGX_Request* request) {
 
     // put the content into a string
     char* buffer = NULL;
-    int bufferSize = 1024; // 1024 bytes = 1KiB
+    int bufferSize = 8192; // 8192 bytes = 8KiB
     int bytesRead = 0;
     int error;
 
     do {
         // extent buffer size on every iteration (double it)
         bufferSize = bufferSize * 2;
+
         // allocate a buffer to store the data
-        buffer = (char*) realloc(buffer, bufferSize);
-        if ( buffer == NULL ) {
-            // buffer is NULL on allocation error
+        char *newBuffer = (char*) realloc(buffer, bufferSize + 1);
+        if ( newBuffer == NULL ) {
+            // newBuffer is NULL on allocation error, we free the old buffer.
             logfile << "Not enough memory to read the contents of the request." << endl;
             free(buffer);
             return "";
         }
+        buffer = newBuffer;
 
         // read in the bytes from the request's input stream into the buffer
         bytesRead += FCGX_GetStr(bytesRead + buffer, bufferSize - bytesRead, request->in);
@@ -202,8 +205,8 @@ std::string getRequestContent(const FCGX_Request* request) {
             return "";
         }
         // repeat until buffer is big enough to store whole input
-        // and the buffer size stays below the maximum content length
-    } while(bytesRead == bufferSize && bufferSize < MAX_CONTENT_LENGTH);
+        // and the next buffer size stays below the maximum content length
+    } while(bytesRead == bufferSize && (bufferSize * 2) < MAX_CONTENT_LENGTH);
     // finalize the input string
     buffer[bytesRead] = '\0';
 
