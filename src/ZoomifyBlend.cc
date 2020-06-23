@@ -104,7 +104,7 @@ bool ZoomifyBlend::loadBlendingSettingsFromJSon(const char* string_to_parse, std
     if(setting.max <= 0 || setting.max <= setting.min)
       return false;
 
-    printf("Created setting with index: %d: lut=%s, min=%d, max=%d\n", setting.idx, setting.lut.c_str(), setting.min, setting.max );
+    //printf("Created setting with index: %d: lut=%s, min=%d, max=%d\n", setting.idx, setting.lut.c_str(), setting.min, setting.max );
     b_settings.push_back(setting);
 
     iter = json_object_iter_next(j_root, iter);
