@@ -296,36 +296,6 @@ void ZoomifyBlend::run( Session* session, const std::string& argument ){
   }
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 void ZoomifyBlend::send(Session* session, int resolution, int tile, const std::vector<BlendingSetting> &blending_settings)
 {
   if( session->loglevel >= 2 ) {
@@ -546,7 +516,7 @@ void ZoomifyBlend::send(Session* session, int resolution, int tile, const std::v
       }
 
 
-      // Apply color mapping if requested TODO: investigate!
+      // Apply color mapping if requested
       if (session->view->cmapped) {
         if (session->loglevel >= 4) {
           *(session->logfile) << "ZoomifyBlend :: send :: Applying color map";
@@ -724,7 +694,7 @@ void ZoomifyBlend::send(Session* session, int resolution, int tile, const std::v
         auto b = b_color.b * (gv / (std::pow(2, 8) - 1));
 
         // fill output array and clip value between 0...255
-        dst_row_p[x * out_channels    ] = static_cast<uint8_t>(std::min(255, std::max(0, static_cast<int>(r + dst_row_p[x * out_channels])))); //r * rowp[x * out_channels])));
+        dst_row_p[x * out_channels    ] = static_cast<uint8_t>(std::min(255, std::max(0, static_cast<int>(r + dst_row_p[x * out_channels]))));
         dst_row_p[x * out_channels + 1] = static_cast<uint8_t>(std::min(255, std::max(0, static_cast<int>(g + dst_row_p[x * out_channels + 1]))));
         dst_row_p[x * out_channels + 2] = static_cast<uint8_t>(std::min(255, std::max(0, static_cast<int>(b + dst_row_p[x * out_channels + 2]))));
 
