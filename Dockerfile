@@ -34,7 +34,12 @@ RUN sed -Ei 's/^# deb-src /deb-src /' /etc/apt/sources.list && \
 WORKDIR /usr/src/iipsrv
 # copy the source
 COPY ./ /usr/src/iipsrv
-RUN sh autogen.sh && ./configure && make
+
+# build jansson library
+RUN cd jansson-2.13.1 && mkdir build && cd build && cmake -DJANSSON_BUILD_DOCS=OFF .. && make -j && make install
+
+# build iipsrv
+RUN sh autogen.sh && ./configure && make -j
 RUN cp ./src/iipsrv.fcgi /usr/local/bin/iipsrv.fcgi
 RUN ldconfig -v
 
