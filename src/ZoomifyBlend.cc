@@ -54,26 +54,12 @@ struct blend_color {
   }
 };
 
-bool ZoomifyBlend::loadBlendingSettingsFromJSon(const char* string_to_parse)
+bool ZoomifyBlend::loadBlendingSettingsFromJSon(const char* string_to_parse, std::vector<BlendingSetting> &b_settings)
 {
-  printf("got this string as input:\n%s\n\n", string_to_parse);
-
-  char* j_string = static_cast<char*>(malloc((strlen(string_to_parse)+1) * sizeof(char)));
-  // first, let's remove whitespaces
-  int s, d=0;
-  for (s=0; string_to_parse[s] != 0; s++)
-    if (string_to_parse[s] != ' ') {
-      j_string[d] = string_to_parse[s];
-      d++;
-    }
-  j_string[d] = 0; // null terminator
-
   json_t* j_root;
   json_error_t j_error;
 
-  printf("try parsing this string:\n%s\n\n", j_string);
-
-  j_root = json_loads(j_string, 0, &j_error);
+  j_root = json_loads(string_to_parse, 0, &j_error);
   if ( !j_root )
   {
     fprintf( stderr, "error: on line %d: %s\n", j_error.line, j_error.text );
@@ -85,93 +71,93 @@ bool ZoomifyBlend::loadBlendingSettingsFromJSon(const char* string_to_parse)
   const char* sub_key;
   json_t* sub_value;
 
-
+  // iterate through json objects and create blending settings
   void *iter = json_object_iter( j_root );
-  while( iter )
+  while(iter)
   {
     key = json_object_iter_key(iter);
     value = json_object_iter_value(iter);
 
-    // iterate through next objects
-    void* sub_iter = json_object_iter(value);
-    while(sub_iter)
-    {
-      sub_key = json_object_iter_key(sub_iter);
-      sub_value = json_object_iter_value(sub_iter);
-      printf("Key: %s: subKey=%s, subValue=%s\n", key, sub_key, json_string_value(sub_value) ); // TODO: write as string!
+    BlendingSetting setting;
+    setting.idx = atoi(key);
 
-      sub_iter = json_object_iter_next(value, sub_iter);
-    }
-    printf("\n");
+    // get expected json objects
+    json_t* obj = json_object_get(value, "lut");
+    if(!obj)
+      return false;
+    const char* tmp_lut = json_string_value(obj)+1;
+    setting.lut = std::string(tmp_lut);
+    if(setting.lut.length() != 6)
+      return false;
+
+    obj = json_object_get(value, "min");
+    if(!obj)
+      return false;
+    setting.min = static_cast<unsigned int>(atoi(json_string_value(obj)));
+    if(setting.min < 0)
+      return false;
+
+    obj = json_object_get(value, "max");
+    if(!obj)
+      return false;
+    setting.max = static_cast<unsigned int>(atoi(json_string_value(obj)));
+    if(setting.max <= 0 || setting.max <= setting.min)
+      return false;
+
+    printf("Created setting with index: %d: lut=%s, min=%d, max=%d\n", setting.idx, setting.lut.c_str(), setting.min, setting.max );
+    b_settings.push_back(setting);
+
     iter = json_object_iter_next(j_root, iter);
   }
 
-  if(j_root)
+  if(j_root) {
     json_decref(j_root);
-
-  free(j_string);
+  }
 
   return true;
 }
 
+
+
+
+
 void ZoomifyBlend::run( Session* session, const std::string& argument ){
   if (session->loglevel >= 3) (*session->logfile) << "ZoomifyBlend :: handler reached\n" << endl;
+  if( session->loglevel >= 4 ) (*session->logfile) << "ZoomifyBlend :: Argument string:\n" << argument << "\n" << endl;
 
-  const char* tmp_command_string =
-          {"/cells_pyr.tif/TileGroup0/1-1-1.jpg&blend={2:{\"lut\":\"jet\",\"min\":0,\"max\":4095}, 3:{\"lut\":\"#FF112D\",\"min\":0,\"max\":4095}}"};
+  // get json string
+  std::string json_string(argument.substr( argument.find( "&" )+1, argument.length()));
+  if( session->loglevel >= 4 ) (*session->logfile) << "ZoomifyBlend :: JSON string:\n" << json_string << "\n" << endl;
 
-  //const char* j_string = {"{\n\"2\":{\n\"lut\":\"jet\",\"min\":0,\"max\":4095\n},\n \"3\":{\n\"lut\":\"#FF112D\",\"min\":0,\"max\":4095\n}\n}\n"};
-
-  std::string json_string("{\n"
-                             "        \"2\":{\n"
-                             "                \"lut\": \"#00ff00\",\n"
-                             "                \"min\": \"0\",\n"
-                             "                \"max\": \"4095\"\n"
-                             "        }\n"
-                             "        \"3\":{\n"
-                             "                \"lut\": \"#ffffff\",\n"
-                             "                \"min\": \"0\",\n"
-                             "                \"max\": \"666\"\n"
-                             "        }\n"
-                             "}");
 
   if (session->loglevel >= 3) (*session->logfile) << "ZoomifyBlend :: parsing json string\n" << endl;
-  if(!this-loadBlendingSettingsFromJSon(json_string.c_str()))
+
+  std::vector<BlendingSetting> blend_settings;
+  if(!this->loadBlendingSettingsFromJSon(json_string.c_str(), blend_settings))
   {
-    return;
+      session->response->setError( "2 1", argument );
+      throw string( "ZoomifyBlend: check json syntax" );
+  }
+  int blending_size = blend_settings.size();
+  if(blending_size == 0)
+  {
+    session->response->setError( "2 3", argument );
+    throw string( "ZoomifyBlend: blend settings empty" );
   }
   if (session->loglevel >= 5) (*session->logfile) << "ZoomifyBlend :: successfuly parsed json string\n" << endl;
 
-
-
-
-
-  // // TODO: hardcoded for now
-  std::vector<BlendingSetting> blend_settings;  // TODO: parse from json string
-  DefaultColors def_colors;
-
-  //int chns[] = {6, 10, 27};
-  const char* color_chns[3] = {"FFFF00", "00ffff", "0000ff" };
-  int chns[] = {2, 1, 0};//, 2};
-  int num_chns = 3;
-
-  for(int i = 0; i < num_chns; ++i)  // generate dummy values for testing
+  for(int i=0; i < blending_size; ++i)
   {
-    BlendingSetting s;
-    s.idx = chns[i];
-    //s.lut = def_colors.three_channel[i];
-    s.lut = color_chns[i];
-    s.min = 0;
-    s.max = 65535;
-    if(i == 2){ s.max = 65535 / 2;}
-    blend_settings.push_back(s);
+    if( session->loglevel >= 4 ){
+      *(session->logfile) << "ZoomifyBlend :: run() :: Blend settings: Idx="
+                          << i << " lut=" << blend_settings[i].lut << ", min=" << blend_settings[i].min << " max=" << blend_settings[i].max << endl;
+    }
+
   }
 
-  // if( session->loglevel >= 4 ) (*session->logfile) << "Argument string:\n" << argument << "\n" << endl;
 
   // Time this command
   if (session->loglevel >= 2) command_timer.start();
-
 
   // The argument is in the form ZoomifyBlend=TileGroup0/r-x-y.jpg where r is the resolution
   // number and x and y are the tile coordinates starting from the bottom left.
@@ -187,15 +173,13 @@ void ZoomifyBlend::run( Session* session, const std::string& argument ){
     //prefix = argument.substr( 0, argument.find( "TileGroup" )-1 );
     cmd_filename_prefix = argument.substr(0, argument.find(".tif"));  // pattern: "/filename_X.tif, X... 0 to N (N... channel index)
   }
-  //cmd_filename_prefix = "/cells_pyr_"; // TODO: hardcoded for now
-  // cmd_filename_prefix = "/channel"; // TODO: hardcoded for now
 
   if( session->loglevel >= 4 ) (*session->logfile) << "ZoomifyBlend :: run() :: cmd_filename_prefix: " << cmd_filename_prefix << "\n" << endl;
   // As we don't have an independent FIF request, we need to create it now
   FIF fif;
 
   // create a list of filenames and load images
-  for(unsigned int image_idx = 0; image_idx < num_chns; ++image_idx)  // TODO
+  for(unsigned int image_idx = 0; image_idx < blending_size; ++image_idx)
   {
     char filename[128];
     char idx_as_str[8];
@@ -209,7 +193,7 @@ void ZoomifyBlend::run( Session* session, const std::string& argument ){
 
     // read image to session, if cached, read from cache
     // add images to session->images vector
-    fif.run( session, filename );  // TODO: check error throw if image is not available
+    fif.run( session, filename );
   }
 
   if( session->loglevel >= 5 ) (*session->logfile) << "\nZoomifyBlend :: run() :: final session-images.size() = " << session->images.size() << "\n" << endl;
@@ -298,14 +282,12 @@ void ZoomifyBlend::run( Session* session, const std::string& argument ){
   unsigned int rem_x = width % tw;
   unsigned int ntlx = (width / tw) + (rem_x == 0 ? 0 : 1);
 
-
   // Calculate the tile index for this resolution from our x, y
   unsigned int tile = y*ntlx + x;
 
 
   // Simply pass this on to our custom send command
-  //session->view->equalization = true;
-  this->send( session, resolution, tile, blend_settings);  // TODO
+  this->send( session, resolution, tile, blend_settings);
 
 
   // Total Zoomify response time
@@ -349,10 +331,6 @@ void ZoomifyBlend::send(Session* session, int resolution, int tile, const std::v
   if( session->loglevel >= 2 ) {
     *(session->logfile) << "ZoomifyBlend :: send :: send() reached" << endl;
   }
-
-//  if( session->view->getBitDepth() != 8 ) {
-//    throw string( "ZoomifyBlend :: send :: unsupported format: ZoomifyBlend supports 8bpp output only" );
-//  }
 
   Timer function_timer;
   this->session = session;
@@ -727,7 +705,8 @@ void ZoomifyBlend::send(Session* session, int resolution, int tile, const std::v
       b_color = blend_color::from_int( value );
     }
     catch( std::exception& ) {
-      throw std::invalid_argument( "invalid color code to ZoomifyBlend!");// + blending_settings[tidx].lut );
+      session->response->setError( "2 1", blending_settings[tidx].lut );
+      throw std::invalid_argument( "ZoomifyBlend: invalid color code for ZoomifyBlend!");// + blending_settings[tidx].lut );
     }
 
     for( int y = 0; y < blended_tile.height; ++y )
@@ -743,16 +722,6 @@ void ZoomifyBlend::send(Session* session, int resolution, int tile, const std::v
         auto r = b_color.r * (gv / (std::pow(2, 8) - 1));
         auto g = b_color.g * (gv / (std::pow(2, 8) - 1));
         auto b = b_color.b * (gv / (std::pow(2, 8) - 1));
-
-        // compute alpha
-        //auto ar = r / 255.0f; //((r - img_min) / (img_max - img_min + 1)) / 255.0f;
-        //auto ag = g / 255.0f; //((g - img_min) / (img_max - img_min + 1)) / 255.0f;
-        //auto ab = b / 255.0f; // ((b - img_min) / (img_max - img_min + 1)) / 255.0f;
-
-        // alpha blend into the final tile
-        //rowp[x * out_channels + 0] = static_cast<uint8_t>(std::min(255.0f, std::max(0.0f, r + (1 - ag) * rowp[x * out_channels])));
-        //rowp[x * out_channels + 1] = static_cast<uint8_t>(std::min(255.0f, std::max(0.0f, g + (1 - ag) * rowp[x * out_channels + 1])));
-        //rowp[x * out_channels + 2] = static_cast<uint8_t>(std::min(255.0f, std::max(0.0f, b + (1 - ab) * rowp[x * out_channels + 2])));
 
         // fill output array and clip value between 0...255
         dst_row_p[x * out_channels    ] = static_cast<uint8_t>(std::min(255, std::max(0, static_cast<int>(r + dst_row_p[x * out_channels])))); //r * rowp[x * out_channels])));
@@ -777,7 +746,6 @@ void ZoomifyBlend::send(Session* session, int resolution, int tile, const std::v
     {
       *(session->logfile) << " in " << function_timer.getTime() << " microseconds to "
                           << blended_tile.dataLength << " bytes" << endl;
-
     }
   }
 
@@ -797,10 +765,7 @@ void ZoomifyBlend::send(Session* session, int resolution, int tile, const std::v
   session->out->printf( str );
 #endif
 
-
-
   // 4. send final response
-
   if( session->out->putStr( static_cast<const char*>(blended_tile.data), len ) != len ){
     if( session->loglevel >= 1 ){
       *(session->logfile) << "ZoomifyBlend :: send :: Error writing jpeg tile" << endl;

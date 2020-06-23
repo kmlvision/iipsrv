@@ -104,7 +104,7 @@ typedef struct
 typedef struct
 {
   unsigned int idx;  // temporarily define here
-  const char* lut;  // colormap string or HEX-code
+  std::string lut;  // colormap string or HEX-code
   unsigned int min;  // not used yet
   unsigned int max;  // not used yet
 }BlendingSetting;
@@ -329,7 +329,7 @@ public:
     // TODO: doc
     void send(Session* session, int resolution, int tile, const std::vector<BlendingSetting> &blending_settings);
 
-    bool loadBlendingSettingsFromJSon(const char* string_to_parse);
+    bool loadBlendingSettingsFromJSon(const char* string_to_parse, std::vector<BlendingSetting> &b_settings);
 };
 
 
