@@ -43,6 +43,7 @@
 #include "Task.h"
 #include "Environment.h"
 #include "Writer.h"
+#include "openssl/sha.h"
 
 #ifdef HAVE_MEMCACHED
 #ifdef WIN32
@@ -220,6 +221,24 @@ std::string getRequestContent(const FCGX_Request* request) {
     return content.substr(0, std::min(contentLength, content.length()));
 }
 
+/**
+ * Use OpenSSL to create a SHA-256 hash from a given content string.
+ * @param content the string to be hashed
+ * @return the hashed string
+ */
+std::string sha256(std::string content) {
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    SHA256_CTX sha256;
+    SHA256_Init(&sha256);
+    SHA256_Update(&sha256, content.c_str(), content.length());
+    SHA256_Final(hash, &sha256);
+
+    char buf[2*SHA256_DIGEST_LENGTH+1];
+    buf[2*SHA256_DIGEST_LENGTH] = 0;
+    for (unsigned int i = 0; i < SHA256_DIGEST_LENGTH; i++)
+        sprintf(buf+i*2, "%02x", hash[i]);
+    return std::string(buf);
+}
 
 
 int main( int argc, char *argv[] )
