@@ -754,7 +754,7 @@ int main( int argc, char *argv[] )
       // request, which should always be faster to send
       if( !header || session.headers["HTTP_IF_MODIFIED_SINCE"].empty() ){
 	char* memcached_response = NULL;
-	if( (memcached_response = memcached.retrieve( request_string )) ){
+	if( (memcached_response = memcached.retrieve( request_string + contentHash )) ){
 	  writer.putStr( memcached_response, memcached.length() );
 	  writer.flush();
 	  free( memcached_response );
@@ -870,7 +870,7 @@ int main( int argc, char *argv[] )
       if( memcached.connected() ){
 	Timer memcached_timer;
 	memcached_timer.start();
-	memcached.store( session.headers["QUERY_STRING"], writer.buffer, writer.sz );
+	memcached.store( request_string + contentHash, writer.buffer, writer.sz );
 	if( loglevel >= 3 ){
 	  logfile << "Memcached :: stored " << writer.sz << " bytes in "
 		  << memcached_timer.getTime() << " microseconds" << endl;
