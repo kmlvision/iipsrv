@@ -667,6 +667,9 @@ int main( int argc, char *argv[] )
 
       char* header = NULL;
       string request_string;
+      string method = getFCGIParamAsString("REQUEST_METHOD", &request);
+      string contentType = getFCGIParamAsString("CONTENT_TYPE", &request);
+      string requestBody;
 
 #ifndef DEBUG
       // If we have a URI prefix mapping, first test for a match between the map prefix string
@@ -749,12 +752,23 @@ int main( int argc, char *argv[] )
       }
 #endif
 
+      string contentHash;
+      // read the payload, if the request uses POST
+      if ( method == "POST" && contentType.find("application/json") != std::string::npos) {
+          if ( loglevel >= 2 ) {
+              logfile << "Request method: " << method << ", Content-Type: " << contentType << endl;
+          }
+          requestBody = getRequestContent(&request);
+          // hash the request body and append it to the cache key identifier
+          contentHash = sha256(requestBody);
+      }
+
 #ifdef HAVE_MEMCACHED
       // Check whether this exists in memcached, but only if we haven't had an if_modified_since
       // request, which should always be faster to send
       if( !header || session.headers["HTTP_IF_MODIFIED_SINCE"].empty() ){
 	char* memcached_response = NULL;
-	if( (memcached_response = memcached.retrieve( request_string )) ){
+	if( (memcached_response = memcached.retrieve( request_string + contentHash )) ){
 	  writer.putStr( memcached_response, memcached.length() );
 	  writer.flush();
 	  free( memcached_response );
@@ -793,20 +807,13 @@ int main( int argc, char *argv[] )
 
 	task = Task::factory( command );
 	if( task ) {
-        std::string method, contentType;
-        method = getFCGIParamAsString("REQUEST_METHOD", &request);
-        contentType = getFCGIParamAsString("CONTENT_TYPE", &request);
-
         // append the request body as argument for the ZoomifyBlend command, if method is POST and
 	    // the content-type header is application/json
         if( dynamic_cast<ZoomifyBlend*>(task)
             && method == "POST"
             && contentType.find("application/json") != std::string::npos )
         {
-            if ( loglevel >= 3 ) {
-                logfile << "Request method: " << method << ", Content-Type: " << contentType << endl;
-            }
-            std::string requestBody = getRequestContent(&request);
+            // pass in the request body as a new argument
             if ( !requestBody.empty() ) {
                 // append the request body string to the argument
                 argument += ("&" + requestBody);
@@ -870,7 +877,7 @@ int main( int argc, char *argv[] )
       if( memcached.connected() ){
 	Timer memcached_timer;
 	memcached_timer.start();
-	memcached.store( session.headers["QUERY_STRING"], writer.buffer, writer.sz );
+	memcached.store( request_string + contentHash, writer.buffer, writer.sz );
 	if( loglevel >= 3 ){
 	  logfile << "Memcached :: stored " << writer.sz << " bytes in "
 		  << memcached_timer.getTime() << " microseconds" << endl;
