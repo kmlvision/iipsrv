@@ -81,6 +81,8 @@ static void unsetenv(char *env_name) {
 
 // Define our default socket backlog
 #define DEFAULT_BACKLOG 2048
+// define maximum POST payload content length (16 MiB)
+#define MAX_CONTENT_LENGTH 16 * 1024 * 1024
 
 //#define DEBUG 1
 
@@ -129,7 +131,91 @@ void IIPSignalHandler( int signal )
   exit( 0 );
 }
 
+/**
+ * Get the FCGI parameter as std::string.
+ * @param name the name of the parameter
+ * @param request the pointer to the request
+ * @return the param as string, or an empty string, if the param does not exist
+ */
+std::string getFCGIParamAsString(const char *name, const FCGX_Request* request) {
+    char *p = FCGX_GetParam(name, request->envp);
+    std::string paramStr(p == NULL ? "" : p);
+    return paramStr;
+}
 
+/**
+ * TODO Note this is not thread safe due to the static allocation of the buffer.
+ */
+// https://stackoverflow.com/questions/21731613/why-its-not-thread-safety-and-how-to-get-it-thread-safety
+std::string getRequestContent(const FCGX_Request* request) {
+
+    // parse the content length as long
+    char *contentLengthStr = FCGX_GetParam("CONTENT_LENGTH", request->envp);
+    unsigned long contentLength = 0;
+    if (contentLengthStr) {
+        contentLength = std::strtol(contentLengthStr, &contentLengthStr, 10);
+        if (contentLength > MAX_CONTENT_LENGTH) {
+            logfile << "Specified Content-Length (" << contentLength << ") exceeds maximum ("
+                    << MAX_CONTENT_LENGTH << "). Reading data only up to maximum." << endl;
+            contentLength = MAX_CONTENT_LENGTH;
+        }
+    }
+
+    if (contentLength == 0){
+        // if CONTENT_LENGTH is 0 or not specified
+        return "";
+    }
+
+    // put the content into a string
+    char* buffer = NULL;
+    int bufferSize = 1024; // 1024 bytes = 1KiB
+    int bytesRead = 0;
+    int error;
+
+    do {
+        // extent buffer size on every iteration (double it)
+        bufferSize = bufferSize * 2;
+        // allocate a buffer to store the data
+        buffer = (char*) realloc(buffer, bufferSize);
+        if ( buffer == NULL ) {
+            // buffer is NULL on allocation error
+            logfile << "Not enough memory to read the contents of the request." << endl;
+            free(buffer);
+            return "";
+        }
+
+        // read in the bytes from the request's input stream into the buffer
+        bytesRead += FCGX_GetStr(bytesRead + buffer, bufferSize - bytesRead, request->in);
+        if ( loglevel >= 6 ) {
+            logfile << "bytes read = " << bytesRead << ", buffer size = " << bufferSize << endl;
+        }
+        if ( bytesRead == 0 ) {
+            // no bytes available to be read
+            free(buffer);
+            return "";
+        }
+
+        error = FCGX_GetError(request->in);
+        if ( error != 0 ) {
+            logfile << "Error occurred while reading request input (code " << error << ")" << endl;
+            free(buffer);
+            return "";
+        }
+        // repeat until buffer is big enough to store whole input
+        // and the buffer size stays below the maximum content length
+    } while(bytesRead == bufferSize && bufferSize < MAX_CONTENT_LENGTH);
+    // finalize the input string
+    buffer[bytesRead] = '\0';
+
+    std::string content(buffer);
+    free(buffer);
+    if ( loglevel >= 3 ) {
+        logfile << "Received request payload data (size = " << bytesRead << " bytes):" << endl;
+        logfile << content << endl;
+    }
+    // truncate the content
+    return content.substr(0, std::min(contentLength, content.length()));
+}
 
 
 
@@ -684,7 +770,28 @@ int main( int argc, char *argv[] )
 	}
 
 	task = Task::factory( command );
-	if( task ) task->run( &session, argument );
+	if( task ) {
+        std::string method, contentType;
+        method = getFCGIParamAsString("REQUEST_METHOD", &request);
+        contentType = getFCGIParamAsString("CONTENT_TYPE", &request);
+
+        // append the request body as argument for the ZoomifyBlend command, if method is POST and
+	    // the content-type header is application/json
+        if( dynamic_cast<ZoomifyBlend*>(task)
+            && method == "POST"
+            && contentType.find("application/json") != std::string::npos )
+        {
+            if ( loglevel >= 3 ) {
+                logfile << "Request method: " << method << ", Content-Type: " << contentType << endl;
+            }
+            std::string requestBody = getRequestContent(&request);
+            if ( !requestBody.empty() ) {
+                // append the request body string to the argument
+                argument += ("&" + requestBody);
+            }
+        }
+	    task->run( &session, argument );
+	}
 
 	if( !task ){
 	  if( loglevel >= 1 ) logfile << "Unsupported command: " << command << endl;
