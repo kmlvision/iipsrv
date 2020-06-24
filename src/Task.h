@@ -92,26 +92,6 @@ struct Session {
 
 };
 
-typedef struct
-{
-  const char* single_channel[1] = {"00FF00"};  // green
-  const char* two_channel[2] = {"00FF00", "FF0000" };  // green, red
-  const char* three_channel[3] = {"0000FF", "00FF00", "FF0000" };  // blue, green, red
-  const char* four_channel[4] = {"0000FF", "00FF00", "FFFF00", "FF0000" };  // blue, green, yellow and red
-  const char* five_channel[5] = {"0000FF", "00FFFF", "00FF00", "FFFF00", "FF0000" };  // blue, cyan, green, yellow and red
-}DefaultColors;
-
-typedef struct
-{
-  unsigned int idx;  // temporarily define here
-  std::string lut;  // colormap string or HEX-code
-  unsigned int min;  // not used yet
-  unsigned int max;  // not used yet
-}BlendingSetting;
-
-
-
-
 /// Generic class to encapsulate various commands
 class Task {
 
@@ -321,15 +301,10 @@ class Zoomify : public Task {
 };
 
 
-/// Zoomify Request Command for blending multi-channels
+/// Zoomify Request Command for blending multi-channel images
 class ZoomifyBlend : public Task {
 public:
     void run( Session* session, const std::string& argument );
-
-    // TODO: doc
-    void send(Session* session, int resolution, int tile, const std::vector<BlendingSetting> &blending_settings);
-
-    bool loadBlendingSettingsFromJSon(const char* string_to_parse, std::vector<BlendingSetting> &b_settings);
 };
 
 
