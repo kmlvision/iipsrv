@@ -458,7 +458,7 @@ int main( int argc, char *argv[] )
       // Make sure the command is one of our supported protocols: "IIP", "IIIF", "Zoomify", "DeepZoom"
       string prtcl = protocol;
       transform( prtcl.begin(), prtcl.end(), prtcl.begin(), ::tolower );
-      if( prtcl == "iip" || prtcl == "iiif" || prtcl == "zoomify" || prtcl == "zoomifyblend" || prtcl == "deepzoom" ){
+      if( prtcl == "iip" || prtcl == "iiif" || prtcl == "iiifblend" || prtcl == "zoomify" || prtcl == "zoomifyblend" || prtcl == "deepzoom" ){
 	supported_protocol = true;
       }
 
@@ -809,7 +809,7 @@ int main( int argc, char *argv[] )
 	if( task ) {
         // append the request body as argument for the ZoomifyBlend command, if method is POST and
 	    // the content-type header is application/json
-        if( dynamic_cast<ZoomifyBlend*>(task)
+        if( (dynamic_cast<ZoomifyBlend*>(task) || dynamic_cast<IIIFBlend*>(task))
             && method == "POST"
             && contentType.find("application/json") != std::string::npos )
         {

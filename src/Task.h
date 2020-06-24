@@ -343,6 +343,13 @@ class IIIF : public Task {
 };
 
 
+/// IIIF Command for blending multi-channel images
+class IIIFBlend : public Task {
+public:
+  void run( Session* session, const std::string& argument );
+};
+
+
 /// Color Twist Command
 class CTW : public Task {
  public:

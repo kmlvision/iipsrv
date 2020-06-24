@@ -66,6 +66,7 @@ iipsrv_fcgi_SOURCES = \
 			SPECTRA.cc \
 			PFL.cc \
 			IIIF.cc \
+      IIIFBlend.cc \
 			Watermark.h \
 			Watermark.cc \
 			Memcached.h

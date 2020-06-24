@@ -66,6 +66,7 @@ Task* Task::factory( const string& t ){
   else if( type == "ctw" ) return new CTW;
   else if( type == "col" ) return new COL;
   else if( type == "iiif" ) return new IIIF;
+  else if( type == "iiifblend" ) return new IIIFBlend;
   else return NULL;
 
 }
