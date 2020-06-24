@@ -807,17 +807,11 @@ int main( int argc, char *argv[] )
 
 	task = Task::factory( command );
 	if( task ) {
-        // append the request body as argument for the ZoomifyBlend command, if method is POST and
-	    // the content-type header is application/json
-        if( dynamic_cast<ZoomifyBlend*>(task)
-            && method == "POST"
-            && contentType.find("application/json") != std::string::npos )
+        // append serialized request body as argument for the ZoomifyBlend command
+        if( dynamic_cast<ZoomifyBlend*>(task) )
         {
-            // pass in the request body as a new argument
-            if ( !requestBody.empty() ) {
-                // append the request body string to the argument
-                argument += ("&" + requestBody);
-            }
+            // Note that the request body may be empty, or incomplete, so the handler needs to take care of this
+            argument += ("&" + requestBody);
         }
 	    task->run( &session, argument );
 	}
