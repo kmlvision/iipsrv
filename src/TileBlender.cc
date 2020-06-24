@@ -56,14 +56,14 @@ bool TileBlender::loadBlendingSettingsFromJSon(const char* string_to_parse, std:
     obj = json_object_get(value, "min");
     if(!obj)
       return false;
-    setting.min = static_cast<unsigned int>(atoi(json_string_value(obj)));
+    setting.min = static_cast<unsigned int>(json_integer_value(obj));
     if(setting.min < 0)
       return false;
 
     obj = json_object_get(value, "max");
     if(!obj)
       return false;
-    setting.max = static_cast<unsigned int>(atoi(json_string_value(obj)));
+    setting.max = static_cast<unsigned int>(json_integer_value(obj));
     if(setting.max <= 0 || setting.max <= setting.min)
       return false;
 
