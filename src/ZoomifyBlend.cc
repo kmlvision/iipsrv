@@ -44,14 +44,15 @@ void ZoomifyBlend::run( Session* session, const std::string& argument ){
   if (session->loglevel >= 3) (*session->logfile) << "ZoomifyBlend :: handler reached\n" << endl;
   if( session->loglevel >= 4 ) (*session->logfile) << "ZoomifyBlend :: Argument string:\n" << argument << "\n" << endl;
 
+  // Time this command
+  if (session->loglevel >= 2) command_timer.start();
+
   // set local session pointer
   this->session = session;
 
   // get json string
   std::string json_string(argument.substr( argument.find( "&" )+1, argument.length()));
   if( session->loglevel >= 4 ) (*session->logfile) << "ZoomifyBlend :: JSON string:\n" << json_string << "\n" << endl;
-
-
   if (session->loglevel >= 3) (*session->logfile) << "ZoomifyBlend :: parsing json string\n" << endl;
 
   // create tile blender
@@ -72,25 +73,19 @@ void ZoomifyBlend::run( Session* session, const std::string& argument ){
   }
   if (session->loglevel >= 5) (*session->logfile) << "ZoomifyBlend :: successfully parsed json string\n" << endl;
 
-  for(int i=0; i < blending_size; ++i)
-  {
-    if( session->loglevel >= 4 ){
-      *(session->logfile) << "ZoomifyBlend :: run() :: Blend settings: Idx="
-                          << i << " lut=" << blending_settings[i].lut << ", min=" << blending_settings[i].min << " max=" << blending_settings[i].max << endl;
+  if( session->loglevel >= 4 )
+    for(int i=0; i < blending_size; ++i)
+    {
+        *(session->logfile) << "ZoomifyBlend :: Blend settings: Idx="
+                            << i << " lut=" << blending_settings[i].lut << ", min=" << blending_settings[i].min << " max=" << blending_settings[i].max << endl;
     }
-
-  }
-
-
-  // Time this command
-  if (session->loglevel >= 2) command_timer.start();
 
   // The argument is in the form ZoomifyBlend=TileGroup0/r-x-y.jpg where r is the resolution
   // number and x and y are the tile coordinates starting from the bottom left.
   string cmd_filename_prefix,  suffix;
   suffix = argument.substr( argument.find_last_of( "/" )+1, argument.length() );
 
-  if( session->loglevel >= 4 ) (*session->logfile) << "ZoomifyBlend :: run() :: suffix: " << suffix << "\n" << endl;
+  if( session->loglevel >= 4 ) (*session->logfile) << "ZoomifyBlend :: suffix: " << suffix << "\n" << endl;
 
   // We need to extract the image path, which is not always the same
   if( suffix == "ImageProperties.xml" )
@@ -100,7 +95,7 @@ void ZoomifyBlend::run( Session* session, const std::string& argument ){
     cmd_filename_prefix = argument.substr(0, argument.find(".tif"));  // pattern: "/filename_X.tif, X... 0 to N (N... channel index)
   }
 
-  if( session->loglevel >= 4 ) (*session->logfile) << "ZoomifyBlend :: run() :: cmd_filename_prefix: " << cmd_filename_prefix << "\n" << endl;
+  if( session->loglevel >= 4 ) (*session->logfile) << "ZoomifyBlend :: cmd_filename_prefix: " << cmd_filename_prefix << "\n" << endl;
   // As we don't have an independent FIF request, we need to create it now
   FIF fif;
 
@@ -115,7 +110,7 @@ void ZoomifyBlend::run( Session* session, const std::string& argument ){
     strcpy(filename, cmd_filename_prefix.c_str());
     strcat(filename, idx_as_str);
     strcat(filename, ".tif");
-    if( session->loglevel >= 5 ) (*session->logfile) << "\nZoomifyBlend :: run() :: use filename: " << filename << endl;
+    if( session->loglevel >= 5 ) (*session->logfile) << "\nZoomifyBlend :: use filename: " << filename << endl;
 
     // read image to session, if cached, read from cache
     // add images to session->images vector
@@ -125,7 +120,7 @@ void ZoomifyBlend::run( Session* session, const std::string& argument ){
   // check if session->image is set
   checkImage();
 
-  if( session->loglevel >= 5 ) (*session->logfile) << "\nZoomifyBlend :: run() :: final session-images.size() = " << session->images.size() << "\n" << endl;
+  if( session->loglevel >= 5 ) (*session->logfile) << "\nZoomifyBlend :: final session-images.size() = " << session->images.size() << "\n" << endl;
 
   // ###################################################################################################################
   // Get the Zoomify basics:
@@ -152,7 +147,7 @@ void ZoomifyBlend::run( Session* session, const std::string& argument ){
 
   if( session->loglevel >= 2 ){
     if( discard > 0 ){
-      *(session->logfile) << "ZoomifyBlend :: run() :: Discarding " << discard << " resolutions that are too small for Zoomify" << endl;
+      *(session->logfile) << "ZoomifyBlend :: Discarding " << discard << " resolutions that are too small for Zoomify" << endl;
     }
   }
 
@@ -162,8 +157,8 @@ void ZoomifyBlend::run( Session* session, const std::string& argument ){
   if( suffix == "ImageProperties.xml" ){
 
     if( session->loglevel >= 2 ){
-      *(session->logfile) << "ZoomifyBlend :: run() :: ImageProperties.xml request" << endl;
-      *(session->logfile) << "ZoomifyBlend :: run() :: Total resolutions: " << numResolutions << ", image width: " << width
+      *(session->logfile) << "ZoomifyBlend :: ImageProperties.xml request" << endl;
+      *(session->logfile) << "ZoomifyBlend :: Total resolutions: " << numResolutions << ", image width: " << width
 			  << ", image height: " << height << endl;
     }
 
@@ -198,7 +193,7 @@ void ZoomifyBlend::run( Session* session, const std::string& argument ){
   resolution += discard;
 
   if( session->loglevel >= 2 ){
-    *(session->logfile) << "ZoomifyBlend :: run() :: Tile request for resolution:"
+    *(session->logfile) << "ZoomifyBlend :: Tile request for resolution:"
 			<< resolution << " at x:" << x << ", y:" << y << endl;
   }
 
@@ -216,7 +211,7 @@ void ZoomifyBlend::run( Session* session, const std::string& argument ){
 
   // Simply pass this on to our blender and send response
   if( session->loglevel >= 4 ){
-    *(session->logfile) << "ZoomifyBlend :: run() :: call TileBlender" << endl;
+    *(session->logfile) << "ZoomifyBlend :: call TileBlender" << endl;
   }
   tile_blender.blend( session, resolution, tile, blending_settings);
 
@@ -225,6 +220,6 @@ void ZoomifyBlend::run( Session* session, const std::string& argument ){
 
   // Total Zoomify response time
   if( session->loglevel >= 2 ){
-    *(session->logfile) << "ZoomifyBlend :: run() :: Total command time " << command_timer.getTime() << " microseconds" << endl;
+    *(session->logfile) << "ZoomifyBlend :: Total command time " << command_timer.getTime() << " microseconds" << endl;
   }
 }
