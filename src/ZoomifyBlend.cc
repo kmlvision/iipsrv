@@ -70,7 +70,7 @@ void ZoomifyBlend::run( Session* session, const std::string& argument ){
     session->response->setError( "2 3", argument );
     throw string( "ZoomifyBlend: blend settings empty" );
   }
-  if (session->loglevel >= 5) (*session->logfile) << "ZoomifyBlend :: successfuly parsed json string\n" << endl;
+  if (session->loglevel >= 5) (*session->logfile) << "ZoomifyBlend :: successfully parsed json string\n" << endl;
 
   for(int i=0; i < blending_size; ++i)
   {
