@@ -236,3 +236,9 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+
+# jansson files
+!jansson-2.13.1/*
+!jansson-2.13.1/test/*
+!jansson-2.13.1/src/*
+!jansson-2.13.1/doc/*
