@@ -90,8 +90,8 @@ void TileBlender::getRawTilesAndPreprocess(Session* session, int resolution, int
   for (int i = 0; i < session->images.size(); ++i) {
     IIPImage *image = session->images[i];
 
-    if (image->getColourSpace() != GREYSCALE || image->channels != 1 || image->bpc != 16) {
-      throw string("TileBlender :: only 16bpp grayscale images supported");
+    if (image->getColourSpace() != GREYSCALE || image->channels != 1 || (image->bpc != 16 && image->bpc != 8)) {
+      throw string("TileBlender :: only 16/8bit grayscale images supported");
     }
     // for each image:
     // 1. get tiles (from cache)
@@ -124,15 +124,17 @@ void TileBlender::getRawTilesAndPreprocess(Session* session, int resolution, int
     }
 
     CompressionType ct;
-
     // Request uncompressed tile if raw pixel data is required for processing
-    if (image->getNumBitsPerPixel() > 8 || image->getColourSpace() == CIELAB
-        || image->getNumChannels() == 2 || image->getNumChannels() > 3
-        || (session->view->colourspace == GREYSCALE && image->getNumChannels() == 3 &&
-            image->getNumBitsPerPixel() == 8)
-        || session->view->floatProcessing() || session->view->equalization
-        || session->view->getRotation() != 0.0 || session->view->flip != 0
-            )
+    if (
+            image->getNumBitsPerPixel() >= 8 ||   // image->getNumBitsPerPixel() > 8
+            image->getColourSpace() == CIELAB ||
+            image->getNumChannels() == 2 ||
+            image->getNumChannels() > 3 ||
+            (session->view->colourspace == GREYSCALE && image->getNumChannels() == 3 && image->getNumBitsPerPixel() == 8) ||
+            session->view->floatProcessing() ||
+            session->view->equalization ||
+            session->view->getRotation() != 0.0 ||
+            session->view->flip != 0)
       ct = UNCOMPRESSED;
     else ct = JPEG;
 
@@ -157,7 +159,7 @@ void TileBlender::getRawTilesAndPreprocess(Session* session, int resolution, int
 
     // 2. preprocess each tile (min/max contrast stretching)  TODO: check all preprocessing steps if they make sense for the blending case....
     // Only use our float pipeline if necessary
-    if (rawtile.bpc > 8 || session->view->floatProcessing()) {
+    if (rawtile.bpc >= 8 || session->view->floatProcessing()) {
       if (session->loglevel >= 5) {
         function_timer.start();
       }
@@ -167,35 +169,35 @@ void TileBlender::getRawTilesAndPreprocess(Session* session, int resolution, int
       vector<float> max;
 
       // Change our image max and min if we have asked for a contrast stretch
-      if (session->view->contrast == -1) {
-
-        // Find first non-zero bin in histogram
-        unsigned int n0 = 0;
-        while (image->histogram[n0] == 0) ++n0;
-
-        // Find highest bin
-        unsigned int n1 = image->histogram.size() - 1;
-        while (image->histogram[n1] == 0) --n1;
-
-        // Histogram has been calculated using 8 bits, so scale up to native bit depth
-        if (rawtile.bpc > 8 && rawtile.sampleType == FIXEDPOINT) {
-          n0 = n0 << (rawtile.bpc - 8);
-          n1 = n1 << (rawtile.bpc - 8);
-        }
-
-        min.assign(rawtile.bpc, (float) n0);
-        max.assign(rawtile.bpc, (float) n1);
-
-        // Reset our contrast
-        session->view->contrast = 1.0;
-
-        if (session->loglevel >= 5) {
-          *(session->logfile) << "TileBlender :: Applying contrast stretch for image range of "
-                              << n0 << " - " << n1 << " in "
-                              << function_timer.getTime() << " microseconds" << endl;
-        }
-
-      }
+//      if (session->view->contrast == -1) {
+//
+//        // Find first non-zero bin in histogram
+//        unsigned int n0 = 0;
+//        while (image->histogram[n0] == 0) ++n0;
+//
+//        // Find highest bin
+//        unsigned int n1 = image->histogram.size() - 1;
+//        while (image->histogram[n1] == 0) --n1;
+//
+//        // Histogram has been calculated using 8 bits, so scale up to native bit depth
+//        if (rawtile.bpc > 8 && rawtile.sampleType == FIXEDPOINT) {
+//          n0 = n0 << (rawtile.bpc - 8);
+//          n1 = n1 << (rawtile.bpc - 8);
+//        }
+//
+//        min.assign(rawtile.bpc, (float) n0);
+//        max.assign(rawtile.bpc, (float) n1);
+//
+//        // Reset our contrast
+//        session->view->contrast = 1.0;
+//
+//        if (session->loglevel >= 5) {
+//          *(session->logfile) << "TileBlender :: Applying contrast stretch for image range of "
+//                              << n0 << " - " << n1 << " in "
+//                              << function_timer.getTime() << " microseconds" << endl;
+//        }
+//
+//      }
 
       // Apply normalization and float conversion
       // assign given min/max values for histogram stretching
