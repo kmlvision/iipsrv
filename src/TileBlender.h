@@ -52,7 +52,7 @@ public:
       @param blending_settings : BlendingSetting vector to be filled
       @return bool for indicating successful parsing of expected setting
   */
-  bool loadBlendingSettingsFromJSon(const char* string_to_parse, std::vector<BlendingSetting> &blending_settings);
+  bool loadBlendingSettingsFromJson(const char* string_to_parse, std::vector<BlendingSetting> &blending_settings);
 
   /// Function to load and preprocess all raw tiles, which are added to the member raw_tiles
   /** @param session : current session variable expected to have the images vector set up

@@ -18,7 +18,7 @@
 
 using namespace std;
 
-bool TileBlender::loadBlendingSettingsFromJSon(const char* string_to_parse, std::vector<BlendingSetting> &blending_settings)
+bool TileBlender::loadBlendingSettingsFromJson(const char* string_to_parse, std::vector<BlendingSetting> &blending_settings)
 {
   json_t* j_root;
   json_error_t j_error;

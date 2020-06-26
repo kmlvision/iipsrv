@@ -103,7 +103,7 @@ void IIIFBlend::run( Session* session, const string& src )
 
   // parse blending_settings
   std::vector<BlendingSetting> blending_settings;
-  if(!tile_blender.loadBlendingSettingsFromJSon(json_string.c_str(), blending_settings))
+  if(!tile_blender.loadBlendingSettingsFromJson(json_string.c_str(), blending_settings))
   {
     session->response->setError( "2 1", argument );
     throw string( "IIIFBlend: check json syntax" );
