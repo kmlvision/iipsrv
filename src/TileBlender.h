@@ -54,15 +54,33 @@ public:
   */
   bool loadBlendingSettingsFromJSon(const char* string_to_parse, std::vector<BlendingSetting> &blending_settings);
 
+  /// Function to load and preprocess all raw tiles, which are added to the member raw_tiles
+  /** @param session : current session variable expected to have the images vector set up
+      @param resolution : image resolution or pyramid level
+      @param tile : tile index
+      @param blending_settings : BlendingSetting vector to be used
+  */
   void getRawTilesAndPreprocess(Session* session, int resolution, int tile, const std::vector<BlendingSetting> &blending_settings);
+
+  /// Function to load and preprocess all raw regions, which are added to the member raw_tiles
+  /** @param session : current session variable expected to have the images vector set up
+      @param blending_settings : BlendingSetting vector to be used
+  */
+  void getRawRegionsAndPreprocess(Session* session, const std::vector<BlendingSetting> &blending_settings);
 
   /// Function to blend image tiles from session->images vector by using the blending settings vector
   /** @param session : current session variable expected to have the images vector set up
       @param resolution : image resolution or pyramid level
       @param tile : tile index
-      @param blending_settings : BlendingSetting vector to be filled
+      @param blending_settings : BlendingSetting vector to be used
   */
-  void blend(Session* session, int resolution, int tile, const std::vector<BlendingSetting> &blending_settings);
+  void blendTiles(Session* session, int resolution, int tile, const std::vector<BlendingSetting> &blending_settings);
+
+  /// Function to blend image regions from session->images vector by using the blending settings vector
+  /** @param session : current session variable expected to have the images vector set up
+      @param blending_settings : BlendingSetting vector to be used
+  */
+  void blendRegions(Session* session, const std::vector<BlendingSetting> &blending_settings);
 
 };
 

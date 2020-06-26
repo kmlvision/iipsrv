@@ -600,34 +600,25 @@ void IIIFBlend::run( Session* session, const string& src )
 
     // Simply pass this on to our blender and send response
     if( session->loglevel >= 4 ){
-      *(session->logfile) << "IIIFBlend :: call TileBlender" << endl;
+      *(session->logfile) << "IIIFBlend :: call TileBlender to blend TILES" << endl;
     }
-    tile_blender.blend( session, requested_res, tile, blending_settings);
-
-    // Inform our response object that we have sent something to the client
-    session->response->setImageSent();
-
-    // Total Zoomify response time
-    if( session->loglevel >= 2 ){
-      *(session->logfile) << "IIIFBlend :: Total command time " << command_timer.getTime() << " microseconds" << endl;
-    }
-
+    tile_blender.blendTiles( session, requested_res, tile, blending_settings);
   }
   else{
-    // Otherwise do a CVT style region request
+    // Otherwise do a region request (usually was a CVT style region request)
     //CVT cvt;
     //cvt.send( session );
-
-    // not supported for tile blending!
-    if ( session->loglevel >= 2 ){
-      *(session->logfile) << "IIIFBlend :: CVT region request not supported for tile blending!" << endl;
+    if( session->loglevel >= 4 ){
+      *(session->logfile) << "IIIFBlend :: call TileBlender to blend REGIONS" << endl;
     }
-    throw string( "IIIFBlend: CVT region request not supported for tile blending!" );
+    tile_blender.blendRegions( session, blending_settings);
   }
 
-  // Total IIIF response time
+  // Inform our response object that we have sent something to the client
+  session->response->setImageSent();
+
+  // Total IIIFBlend response time
   if ( session->loglevel >= 2 ){
     *(session->logfile) << "IIIFBlend :: Total command time " << command_timer.getTime() << " microseconds" << endl;
   }
-
 }

@@ -213,7 +213,7 @@ void ZoomifyBlend::run( Session* session, const std::string& argument ){
   if( session->loglevel >= 4 ){
     *(session->logfile) << "ZoomifyBlend :: call TileBlender" << endl;
   }
-  tile_blender.blend( session, resolution, tile, blending_settings);
+  tile_blender.blendTiles( session, resolution, tile, blending_settings);
 
   // Inform our response object that we have sent something to the client
   session->response->setImageSent();
