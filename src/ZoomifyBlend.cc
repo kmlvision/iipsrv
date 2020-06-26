@@ -41,26 +41,35 @@
 using namespace std;
 
 void ZoomifyBlend::run( Session* session, const std::string& argument ){
-  if (session->loglevel >= 3) (*session->logfile) << "ZoomifyBlend :: handler reached\n" << endl;
-  if( session->loglevel >= 4 ) (*session->logfile) << "ZoomifyBlend :: Argument string:\n" << argument << "\n" << endl;
+  if ( session->loglevel >= 3 ) (*session->logfile) << "ZoomifyBlend :: handler reached\n" << endl;
+  if ( session->loglevel >= 4 ) (*session->logfile) << "ZoomifyBlend :: Argument string:\n" << argument << "\n" << endl;
 
-  // Time this command
-  if (session->loglevel >= 2) command_timer.start();
+    if ( argument.find("&") == std::string::npos) {
+        session->response->setError( "2 0", argument );
+        throw string( "ZoomifyBlend: check argument string to contain all data" );
+  }
 
-  // set local session pointer
-  this->session = session;
+    // Time this command
+    if (session->loglevel >= 2) command_timer.start();
 
-  // get json string
-  std::string json_string(argument.substr( argument.find( "&" )+1, argument.length()));
-  if( session->loglevel >= 4 ) (*session->logfile) << "ZoomifyBlend :: JSON string:\n" << json_string << "\n" << endl;
-  if (session->loglevel >= 3) (*session->logfile) << "ZoomifyBlend :: parsing json string\n" << endl;
+    // set local session pointer
+    this->session = session;
 
-  // create tile blender
-  TileBlender tile_blender;
+    // get json string by splitting the argument into zoomify params and the json string
+    std::string zoomify_params(argument.substr( 0, argument.find( "&" )));
+    std::string json_string(argument.substr( argument.find( "&" )+1, argument.length()));
+    if( session->loglevel >= 4 ) {
+        (*session->logfile) << "ZoomifyBlend :: Zoomify params:\n" << zoomify_params << "\n" << endl;
+        (*session->logfile) << "ZoomifyBlend :: JSON string:\n" << json_string << "\n" << endl;
+    }
+    if (session->loglevel >= 3) (*session->logfile) << "ZoomifyBlend :: parsing json string\n" << endl;
 
-  // parse blending_settings
-  std::vector<BlendingSetting> blending_settings;
-  if(!tile_blender.loadBlendingSettingsFromJson(json_string.c_str(), blending_settings))
+    // create tile blender
+    TileBlender tile_blender;
+
+    // parse blending_settings
+    std::vector<BlendingSetting> blending_settings;
+    if(!tile_blender.loadBlendingSettingsFromJson(json_string.c_str(), blending_settings))
   {
       session->response->setError( "2 1", argument );
       throw string( "ZoomifyBlend: check json syntax" );
@@ -80,22 +89,33 @@ void ZoomifyBlend::run( Session* session, const std::string& argument ){
                             << i << " lut=" << blending_settings[i].lut << ", min=" << blending_settings[i].min << " max=" << blending_settings[i].max << endl;
     }
 
-  // The argument is in the form ZoomifyBlend=TileGroup0/r-x-y.jpg where r is the resolution
-  // number and x and y are the tile coordinates starting from the bottom left.
-  string cmd_filename_prefix,  suffix;
-  suffix = argument.substr( argument.find_last_of( "/" )+1, argument.length() );
+  // The argument is in the form "/some/path/to/file[.ext]/TileGroup0/r-x-y.jpg&BlendJSON" where r is the resolution
+  // number and x and y are the tile coordinates starting from the bottom left. BlendJSON defines a serialized JSON
+  // string with the blending settings, we just split the string. The path to the file may optionally have an extension.
+  string cmd_filename_prefix, file_ext, suffix;
+  suffix = zoomify_params.substr( zoomify_params.find_last_of( "/" )+1, zoomify_params.length() );
 
   if( session->loglevel >= 4 ) (*session->logfile) << "ZoomifyBlend :: suffix: " << suffix << "\n" << endl;
 
   // We need to extract the image path, which is not always the same
   if( suffix == "ImageProperties.xml" )
-    cmd_filename_prefix = argument.substr( 0, argument.find_last_of( "/" ) );
+    cmd_filename_prefix = zoomify_params.substr( 0, zoomify_params.find_last_of( "/" ) );
   else {
-    //prefix = argument.substr( 0, argument.find( "TileGroup" )-1 );
-    cmd_filename_prefix = argument.substr(0, argument.find(".tif"));  // pattern: "/filename_X.tif, X... 0 to N (N... channel index)
+      // get the file path specification
+    cmd_filename_prefix = zoomify_params.substr( 0, zoomify_params.find( "TileGroup" )-1 );
+
+    // desired pattern: "/filename_X.ext", with X ... 0 to N-1 (N ... total number of channels)
+    unsigned long ext_delimiter_idx = cmd_filename_prefix.find_last_of(".");
+    if ( ext_delimiter_idx != std::string::npos ) {
+        file_ext = cmd_filename_prefix.substr(ext_delimiter_idx+1, cmd_filename_prefix.length());
+        cmd_filename_prefix = cmd_filename_prefix.substr(0, ext_delimiter_idx);
+    }
   }
 
-  if( session->loglevel >= 4 ) (*session->logfile) << "ZoomifyBlend :: cmd_filename_prefix: " << cmd_filename_prefix << "\n" << endl;
+  if( session->loglevel >= 4 ) {
+      (*session->logfile) << "ZoomifyBlend :: cmd_filename_prefix: " << cmd_filename_prefix << endl;
+      (*session->logfile) << "ZoomifyBlend :: file extension: " << file_ext << "\n" << endl;
+  }
   // As we don't have an independent FIF request, we need to create it now
   FIF fif;
 
@@ -106,11 +126,14 @@ void ZoomifyBlend::run( Session* session, const std::string& argument ){
     char idx_as_str[8];
     sprintf(idx_as_str, "_%d", blending_settings[image_idx].idx);
 
-
     strcpy(filename, cmd_filename_prefix.c_str());
     strcat(filename, idx_as_str);
-    strcat(filename, ".tif");
-    if( session->loglevel >= 5 ) (*session->logfile) << "\nZoomifyBlend :: use filename: " << filename << endl;
+    if ( !file_ext.empty() ){
+        strcat(filename, ("." + file_ext).c_str());
+    }
+    if( session->loglevel >= 5 ) {
+        (*session->logfile) << "\nZoomifyBlend :: using filename: " << filename << endl;
+    }
 
     // read image to session, if cached, read from cache
     // add images to session->images vector
@@ -120,7 +143,9 @@ void ZoomifyBlend::run( Session* session, const std::string& argument ){
   // check if session->image is set
   checkImage();
 
-  if( session->loglevel >= 5 ) (*session->logfile) << "\nZoomifyBlend :: final session-images.size() = " << session->images.size() << "\n" << endl;
+  if( session->loglevel >= 5 ) {
+      (*session->logfile) << "\nZoomifyBlend :: final session-images.size() = " << session->images.size() << "\n" << endl;
+  }
 
   // ###################################################################################################################
   // Get the Zoomify basics:
