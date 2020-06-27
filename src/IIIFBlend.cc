@@ -1,6 +1,8 @@
 /*
 
-    IIIF Request Command Handler Class for supporting tile blending of multi channel images
+    IIIF Request Command Handler Class for supporting tile blending of multichannel images
+
+    Copyright (C) 2020 KML Vision GmbH.
 */
 
 #include <algorithm>
