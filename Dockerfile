@@ -37,7 +37,7 @@ WORKDIR /usr/src/iipsrv
 COPY ./ /usr/src/iipsrv
 
 # build iipsrv
-RUN sh autogen.sh && ./configure && make
+RUN sh autogen.sh && ./configure && make -j2
 RUN cp ./src/iipsrv.fcgi /usr/local/bin/iipsrv.fcgi
 RUN ldconfig -v
 
