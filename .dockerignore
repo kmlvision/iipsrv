@@ -189,4 +189,7 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 
+# other build files
 build/
+libtool
+.deps/
