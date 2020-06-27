@@ -191,6 +191,7 @@
     <ClCompile Include="..\src\FIF.cc" />
     <ClCompile Include="..\src\ICC.cc" />
     <ClCompile Include="..\src\IIIF.cc" />
+    <ClCompile Include="..\src\IIIFBlend.cc" />
     <ClCompile Include="..\src\IIPImage.cc" />
     <ClCompile Include="..\src\IIPResponse.cc" />
     <ClCompile Include="..\src\JPEGCompressor.cc" />
@@ -201,12 +202,14 @@
     <ClCompile Include="..\src\SPECTRA.cc" />
     <ClCompile Include="..\src\Task.cc" />
     <ClCompile Include="..\src\TIL.cc" />
+    <ClCompile Include="..\src\TileBlender.cc" />
     <ClCompile Include="..\src\TileManager.cc" />
     <ClCompile Include="..\src\TPTImage.cc" />
     <ClCompile Include="..\src\Transforms.cc" />
     <ClCompile Include="..\src\View.cc" />
     <ClCompile Include="..\src\Watermark.cc" />
     <ClCompile Include="..\src\Zoomify.cc" />
+    <ClCompile Include="..\src\ZoomifyBlend.cc" />
     <ClCompile Include="Time.cc" />
   </ItemGroup>
   <ItemGroup>
@@ -220,6 +223,7 @@
     <ClInclude Include="..\src\Memcached.h" />
     <ClInclude Include="..\src\RawTile.h" />
     <ClInclude Include="..\src\Task.h" />
+    <ClInclude Include="..\src\TileBlender.h" />
     <ClInclude Include="..\src\TileManager.h" />
     <ClInclude Include="..\src\Timer.h" />
     <ClInclude Include="..\src\Tokenizer.h" />

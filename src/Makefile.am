@@ -47,7 +47,7 @@ iipsrv_fcgi_SOURCES = \
 			View.cc \
 			Transforms.h \
 			Transforms.cc \
-      TileBlender.h \
+            TileBlender.h \
 			TileBlender.cc \
 			Environment.h \
 			URL.h \
@@ -61,12 +61,12 @@ iipsrv_fcgi_SOURCES = \
 			ICC.cc \
 			CVT.cc \
 			Zoomify.cc \
-      ZoomifyBlend.cc \
+            ZoomifyBlend.cc \
 			DeepZoom.cc \
 			SPECTRA.cc \
 			PFL.cc \
 			IIIF.cc \
-      IIIFBlend.cc \
+            IIIFBlend.cc \
 			Watermark.h \
 			Watermark.cc \
 			Memcached.h
