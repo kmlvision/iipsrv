@@ -20,7 +20,6 @@ RUN sed -Ei 's/^# deb-src /deb-src /' /etc/apt/sources.list && \
       nano \
       cmake \
       git \
-      libjansson-dev \
       libjpeg8-dev \
       libmemcached-dev \
       libopenjpeg-dev \
@@ -33,18 +32,14 @@ RUN sed -Ei 's/^# deb-src /deb-src /' /etc/apt/sources.list && \
     apt-get -y build-dep iipimage
 
 WORKDIR /usr/src/iipsrv
-# copy the source
-COPY ./ /usr/src/iipsrv
-
-# build iipsrv
-RUN sh autogen.sh && ./configure && make -j2
+RUN git clone https://github.com/kmlvision/iipsrv.git . && git checkout tags/iipsrv-1.2.0 && sh autogen.sh && ./configure && make
 RUN cp ./src/iipsrv.fcgi /usr/local/bin/iipsrv.fcgi
 RUN ldconfig -v
 
 # set nginx config
-COPY docker/nginx.conf /etc/nginx/nginx.conf
+COPY nginx.conf /etc/nginx/nginx.conf
 # copy entrypoint
-COPY docker/start_iipsrv.sh /entrypoint.sh
+COPY start_iipsrv.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 WORKDIR /

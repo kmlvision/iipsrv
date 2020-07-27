@@ -193,6 +193,12 @@ void FIF::run( Session* session, const string& src ){
       *(session->logfile) << "FIF :: Created image" << endl;
     }
 
+    // Also add image to images vector for multi image processing (blending)
+    session->images.push_back(*session->image);
+
+    if( session->loglevel >= 3 ){
+      *(session->logfile) << "FIF :: Added image to images vector, size=" << session->images.size() << endl;
+    }
 
     // Set the timestamp for the reply
     session->response->setLastModified( (*session->image)->getTimestamp() );

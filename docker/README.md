@@ -16,7 +16,9 @@ docker build -t kmlvision/iipsrv:<version> .
 docker push kmlvision/iipsrv:<version> 
 ```
 
-
+## Version 1.2.0
+Features:
+- blending multichannel images
 
 ## Version 1.1.0
 Features:

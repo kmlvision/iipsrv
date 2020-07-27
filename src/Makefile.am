@@ -4,7 +4,7 @@ noinst_PROGRAMS =	iipsrv.fcgi
 
 
 INCLUDES =		@INCLUDES@ @LIBFCGI_INCLUDES@ @JPEG_INCLUDES@ @TIFF_INCLUDES@
-LIBS =			@LIBS@ @LIBFCGI_LIBS@ @DL_LIBS@ @JPEG_LIBS@ @TIFF_LIBS@ -lm
+LIBS =			@LIBS@ @LIBFCGI_LIBS@ @DL_LIBS@ @JPEG_LIBS@ @TIFF_LIBS@ -lm -ljansson -lssl -lcrypto
 AM_LDFLAGS =		@LIBFCGI_LDFLAGS@
 
 iipsrv_fcgi_LDADD = Main.o
@@ -47,6 +47,8 @@ iipsrv_fcgi_SOURCES = \
 			View.cc \
 			Transforms.h \
 			Transforms.cc \
+            TileBlender.h \
+			TileBlender.cc \
 			Environment.h \
 			URL.h \
 			Writer.h \
@@ -59,10 +61,12 @@ iipsrv_fcgi_SOURCES = \
 			ICC.cc \
 			CVT.cc \
 			Zoomify.cc \
+            ZoomifyBlend.cc \
 			DeepZoom.cc \
 			SPECTRA.cc \
 			PFL.cc \
 			IIIF.cc \
+            IIIFBlend.cc \
 			Watermark.h \
 			Watermark.cc \
 			Memcached.h

@@ -70,7 +70,9 @@ tested on the following servers:
 
 Example server configurations are shown below.
 
-
+### DEPENDENCIES ###
+* openssl (hashing algorithms)
+* jansson (for JSON manipulation)
 
 BUILDING
 --------

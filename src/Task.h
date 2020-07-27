@@ -26,6 +26,7 @@
 
 #include <string>
 #include <fstream>
+#include <vector>
 #include "IIPImage.h"
 #include "IIPResponse.h"
 #include "JPEGCompressor.h"
@@ -65,6 +66,8 @@ typedef HASHMAP <std::string,IIPImage> imageCacheMapType;
 /// Structure to hold our session data
 struct Session {
   IIPImage **image;
+  std::vector<IIPImage*> images;  // in case for blending multiple tiles
+
   JPEGCompressor* jpeg;
 #ifdef HAVE_PNG
   PNGCompressor* png;
@@ -88,9 +91,6 @@ struct Session {
 #endif
 
 };
-
-
-
 
 /// Generic class to encapsulate various commands
 class Task {
@@ -301,6 +301,13 @@ class Zoomify : public Task {
 };
 
 
+/// Zoomify Request Command for blending multi-channel images
+class ZoomifyBlend : public Task {
+public:
+    void run( Session* session, const std::string& argument );
+};
+
+
 /// SPECTRA Request Command
 class SPECTRA : public Task {
  public:
@@ -332,6 +339,13 @@ class DeepZoom : public Task {
 /// IIIF Command
 class IIIF : public Task {
  public:
+  void run( Session* session, const std::string& argument );
+};
+
+
+/// IIIF Command for blending multi-channel images
+class IIIFBlend : public Task {
+public:
   void run( Session* session, const std::string& argument );
 };
 

@@ -58,6 +58,7 @@ Task* Task::factory( const string& t ){
   else if( type == "cmp" ) return new CMP;
   else if( type == "inv" ) return new INV;
   else if( type == "zoomify" ) return new Zoomify;
+  else if( type == "zoomifyblend" ) return new ZoomifyBlend;
   else if( type == "spectra" ) return new SPECTRA;
   else if( type == "pfl" ) return new PFL;
   else if( type == "lyr" ) return new LYR;
@@ -65,6 +66,7 @@ Task* Task::factory( const string& t ){
   else if( type == "ctw" ) return new CTW;
   else if( type == "col" ) return new COL;
   else if( type == "iiif" ) return new IIIF;
+  else if( type == "iiifblend" ) return new IIIFBlend;
   else return NULL;
 
 }

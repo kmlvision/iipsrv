@@ -43,6 +43,7 @@
 #include "Task.h"
 #include "Environment.h"
 #include "Writer.h"
+#include "openssl/sha.h"
 
 #ifdef HAVE_MEMCACHED
 #ifdef WIN32
@@ -81,6 +82,8 @@ static void unsetenv(char *env_name) {
 
 // Define our default socket backlog
 #define DEFAULT_BACKLOG 2048
+// define maximum POST payload content length (16 MiB)
+#define MAX_CONTENT_LENGTH 16 * 1024 * 1024
 
 //#define DEBUG 1
 
@@ -129,13 +132,117 @@ void IIPSignalHandler( int signal )
   exit( 0 );
 }
 
+/**
+ * Get the FCGI parameter as std::string.
+ * @param name the name of the parameter
+ * @param request the pointer to the request
+ * @return the param as string, or an empty string, if the param does not exist
+ */
+std::string getFCGIParamAsString(const char *name, const FCGX_Request* request) {
+    char *p = FCGX_GetParam(name, request->envp);
+    std::string paramStr(p == NULL ? "" : p);
+    return paramStr;
+}
 
+/**
+ * Get the content off a FCGI request.
+ *
+ * @param request pointer to the request object
+ * @return the request content, or an empty string, if there is no Content-Length header specified
+ */
+std::string getRequestContent(const FCGX_Request* request) {
+    // parse the content length as long
+    char *contentLengthStr = FCGX_GetParam("CONTENT_LENGTH", request->envp);
+    unsigned long contentLength = 0;
+    if (contentLengthStr) {
+        contentLength = std::strtol(contentLengthStr, &contentLengthStr, 10);
+        if (contentLength > MAX_CONTENT_LENGTH) {
+            logfile << "Specified Content-Length (" << contentLength << ") exceeds maximum ("
+                    << MAX_CONTENT_LENGTH << "). Reading data only up to maximum." << endl;
+            contentLength = MAX_CONTENT_LENGTH;
+        }
+    }
 
+    if (contentLength == 0){
+        // if CONTENT_LENGTH is 0 or not specified
+        return "";
+    }
+
+    // put the content into a string
+    char* buffer = NULL;
+    int bufferSize = 8192; // 8192 bytes = 8KiB
+    int bytesRead = 0;
+    int error;
+
+    do {
+        // extent buffer size on every iteration (double it)
+        bufferSize = bufferSize * 2;
+
+        // allocate a buffer to store the data
+        char *newBuffer = (char*) realloc(buffer, bufferSize + 1);
+        if ( newBuffer == NULL ) {
+            // newBuffer is NULL on allocation error, we free the old buffer.
+            logfile << "Not enough memory to read the contents of the request." << endl;
+            free(buffer);
+            return "";
+        }
+        buffer = newBuffer;
+
+        // read in the bytes from the request's input stream into the buffer
+        bytesRead += FCGX_GetStr(bytesRead + buffer, bufferSize - bytesRead, request->in);
+        if ( loglevel >= 6 ) {
+            logfile << "bytes read = " << bytesRead << ", buffer size = " << bufferSize << endl;
+        }
+        if ( bytesRead == 0 ) {
+            // no bytes available to be read
+            free(buffer);
+            return "";
+        }
+
+        error = FCGX_GetError(request->in);
+        if ( error != 0 ) {
+            logfile << "Error occurred while reading request input (code " << error << ")" << endl;
+            free(buffer);
+            return "";
+        }
+        // repeat until buffer is big enough to store whole input
+        // and the next buffer size stays below the maximum content length
+    } while(bytesRead == bufferSize && (bufferSize * 2) < MAX_CONTENT_LENGTH);
+    // finalize the input string
+    buffer[bytesRead] = '\0';
+
+    std::string content(buffer);
+    free(buffer);
+    if ( loglevel >= 3 ) {
+        logfile << "Received request payload data (size = " << bytesRead << " bytes):" << endl;
+        logfile << content << endl;
+    }
+    // truncate the content
+    return content.substr(0, std::min(contentLength, content.length()));
+}
+
+/**
+ * Use OpenSSL to create a SHA-256 hash from a given content string.
+ * @param content the string to be hashed
+ * @return the hashed string
+ */
+std::string sha256(std::string content) {
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    SHA256_CTX sha256;
+    SHA256_Init(&sha256);
+    SHA256_Update(&sha256, content.c_str(), content.length());
+    SHA256_Final(hash, &sha256);
+
+    char buf[2*SHA256_DIGEST_LENGTH+1];
+    buf[2*SHA256_DIGEST_LENGTH] = 0;
+    for (unsigned int i = 0; i < SHA256_DIGEST_LENGTH; i++)
+        sprintf(buf+i*2, "%02x", hash[i]);
+    return std::string(buf);
+}
 
 
 int main( int argc, char *argv[] )
 {
-
   IIPcount = 0;
   int i;
 
@@ -351,7 +458,7 @@ int main( int argc, char *argv[] )
       // Make sure the command is one of our supported protocols: "IIP", "IIIF", "Zoomify", "DeepZoom"
       string prtcl = protocol;
       transform( prtcl.begin(), prtcl.end(), prtcl.begin(), ::tolower );
-      if( prtcl == "iip" || prtcl == "iiif" || prtcl == "zoomify" || prtcl == "deepzoom" ){
+      if( prtcl == "iip" || prtcl == "iiif" || prtcl == "iiifblend" || prtcl == "zoomify" || prtcl == "zoomifyblend" || prtcl == "deepzoom" ){
 	supported_protocol = true;
       }
 
@@ -536,10 +643,12 @@ int main( int argc, char *argv[] )
     response.setCORS( cors );
     response.setCacheControl( cache_control );
 
+    // create Session variable outside of try block, so that we can clear the image memory afterwards
+    Session session;
+
     try{
 
       // Set up our session data object
-      Session session;
       session.image = &image;
       session.response = &response;
       session.view = &view;
@@ -558,6 +667,9 @@ int main( int argc, char *argv[] )
 
       char* header = NULL;
       string request_string;
+      string method = getFCGIParamAsString("REQUEST_METHOD", &request);
+      string contentType = getFCGIParamAsString("CONTENT_TYPE", &request);
+      string requestBody;
 
 #ifndef DEBUG
       // If we have a URI prefix mapping, first test for a match between the map prefix string
@@ -640,12 +752,23 @@ int main( int argc, char *argv[] )
       }
 #endif
 
+      string contentHash;
+      // read the payload, if the request uses POST
+      if ( method == "POST" && contentType.find("application/json") != std::string::npos) {
+          if ( loglevel >= 2 ) {
+              logfile << "Request method: " << method << ", Content-Type: " << contentType << endl;
+          }
+          requestBody = getRequestContent(&request);
+          // hash the request body and append it to the cache key identifier
+          contentHash = sha256(requestBody);
+      }
+
 #ifdef HAVE_MEMCACHED
       // Check whether this exists in memcached, but only if we haven't had an if_modified_since
       // request, which should always be faster to send
       if( !header || session.headers["HTTP_IF_MODIFIED_SINCE"].empty() ){
 	char* memcached_response = NULL;
-	if( (memcached_response = memcached.retrieve( request_string )) ){
+	if( (memcached_response = memcached.retrieve( request_string + contentHash )) ){
 	  writer.putStr( memcached_response, memcached.length() );
 	  writer.flush();
 	  free( memcached_response );
@@ -683,7 +806,15 @@ int main( int argc, char *argv[] )
 	}
 
 	task = Task::factory( command );
-	if( task ) task->run( &session, argument );
+	if( task ) {
+        // append serialized request body as argument for the ZoomifyBlend command
+        if( dynamic_cast<ZoomifyBlend*>(task) || dynamic_cast<IIIFBlend*>(task) )
+        {
+            // Note that the request body may be empty, or incomplete, so the handler needs to take care of this
+            argument += ("&" + requestBody);
+        }
+	    task->run( &session, argument );
+	}
 
 	if( !task ){
 	  if( loglevel >= 1 ) logfile << "Unsupported command: " << command << endl;
@@ -740,7 +871,7 @@ int main( int argc, char *argv[] )
       if( memcached.connected() ){
 	Timer memcached_timer;
 	memcached_timer.start();
-	memcached.store( session.headers["QUERY_STRING"], writer.buffer, writer.sz );
+	memcached.store( request_string + contentHash, writer.buffer, writer.sz );
 	if( loglevel >= 3 ){
 	  logfile << "Memcached :: stored " << writer.sz << " bytes in "
 		  << memcached_timer.getTime() << " microseconds" << endl;
@@ -859,7 +990,12 @@ int main( int argc, char *argv[] )
       delete task;
       task = NULL;
     }
-    delete image;
+
+    // this deletes any images loaded as well as the local 'image' pointer
+    for ( int i = 0; i < session.images.size(); ++i ) {
+      delete session.images[i];
+    }
+
     image = NULL;
     IIPcount ++;
 
