@@ -63,7 +63,7 @@ bool TileBlender::loadBlendingSettingsFromJson(const char *string_to_parse,
         if (!obj)
             return false;
         setting.max = static_cast<unsigned int>(json_integer_value(obj));
-        if (setting.max <= 0 || setting.max <= setting.min)
+        if (setting.max < 0 || setting.max < setting.min)
             return false;
 
         //printf("Created setting with index: %d: lut=%s, min=%d, max=%d\n", setting.idx, setting.lut.c_str(), setting.min, setting.max );
