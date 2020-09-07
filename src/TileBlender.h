@@ -35,8 +35,8 @@ struct BlendColor {
 typedef struct {
     unsigned int idx;  // temporarily define here
     std::string lut;  // colormap string or HEX-code
-    unsigned int min;  // not used yet
-    unsigned int max;  // not used yet
+    unsigned int min;
+    unsigned int max;
 } BlendingSetting;
 
 

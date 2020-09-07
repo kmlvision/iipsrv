@@ -866,13 +866,24 @@ void TileBlender::blendTiles(Session *session, int resolution, int tile,
 
         const float img_min = (*session->images[tidx]).min[0];
         const float img_max = (*session->images[tidx]).max[0];
+        const bool is_tile_single_valued = (blending_settings[tidx].min == blending_settings[tidx].max) && (blending_settings[tidx].max != 0);
+        const bool is_tile_empty = (blending_settings[tidx].min == blending_settings[tidx].max) && (blending_settings[tidx].max == 0);
         const unsigned int bit_depth = (*session->images[tidx]).bpc;
 
         if (session->loglevel >= 5) {
             *(session->logfile) << "TileBlender :: original image BitDepth = " << bit_depth << endl;
             *(session->logfile) << "TileBlender :: original image Minimum  = " << img_min << endl;
             *(session->logfile) << "TileBlender :: original image Maximum  = " << img_max << endl;
+            if(is_tile_single_valued)
+               *(session->logfile) << "TileBlender :: tile is single valued!" << endl;
+            if(is_tile_empty)
+              *(session->logfile) << "TileBlender :: tile is empty!" << endl;
         }
+
+        // skip blending if this tile is empty!
+        // the result will contain zeros only
+        if(is_tile_empty)
+          continue;
 
         const RawTile &cur_tile = this->raw_tiles[tidx];
         const uint8_t *src = static_cast<const uint8_t *>(cur_tile.data);
@@ -900,13 +911,14 @@ void TileBlender::blendTiles(Session *session, int resolution, int tile,
             uint8_t *dst_row_p = dst + y * dst_stride;
 
             for (int x = 0; x < blended_tile.width; ++x) {
-                // get the gray value
-                auto gv = src[y * src_stride + x];
+                // get the gray value and check whether the tile is single valued and not zero or not.
+                // If it is, set this tile to maximum intensity:
+                auto gv = is_tile_single_valued ? 255 : src[y * src_stride + x];
 
                 // convert to color
-                auto r = b_color.r * (gv / (std::pow(2, 8) - 1));
-                auto g = b_color.g * (gv / (std::pow(2, 8) - 1));
-                auto b = b_color.b * (gv / (std::pow(2, 8) - 1));
+                auto r = b_color.r * (gv / 255.0);
+                auto g = b_color.g * (gv / 255.0);
+                auto b = b_color.b * (gv / 255.0);
 
                 // fill output array and clip value between 0...255
                 dst_row_p[x * out_channels] = static_cast<uint8_t>(std::min(255, std::max(0, static_cast<int>(r +
@@ -1013,13 +1025,24 @@ void TileBlender::blendRegions(Session *session, const std::vector<BlendingSetti
 
         const float img_min = (*session->images[tidx]).min[0];
         const float img_max = (*session->images[tidx]).max[0];
+        const bool is_tile_single_valued = (blending_settings[tidx].min == blending_settings[tidx].max) && (blending_settings[tidx].max != 0);
+        const bool is_tile_empty = (blending_settings[tidx].min == blending_settings[tidx].max) && (blending_settings[tidx].max == 0);
         const unsigned int bit_depth = (*session->images[tidx]).bpc;
 
         if (session->loglevel >= 5) {
             *(session->logfile) << "TileBlender :: original image BitDepth = " << bit_depth << endl;
             *(session->logfile) << "TileBlender :: original image Minimum  = " << img_min << endl;
             *(session->logfile) << "TileBlender :: original image Maximum  = " << img_max << endl;
+            if(is_tile_single_valued)
+              *(session->logfile) << "TileBlender :: region is single valued!" << endl;
+            if(is_tile_empty)
+              *(session->logfile) << "TileBlender :: region is empty!" << endl;
         }
+
+        // skip blending if this tile is empty!
+        // the result will contain zeros only
+        if(is_tile_empty)
+          continue;
 
         const RawTile &cur_tile = this->raw_tiles[tidx];
         const uint8_t *src = static_cast<const uint8_t *>(cur_tile.data);
@@ -1047,13 +1070,14 @@ void TileBlender::blendRegions(Session *session, const std::vector<BlendingSetti
             uint8_t *dst_row_p = dst + y * dst_stride;
 
             for (int x = 0; x < blended_tile.width; ++x) {
-                // get the gray value
-                auto gv = src[y * src_stride + x];
+              // get the gray value and check whether the tile is single valued and not zero or not.
+              // If it is, set this tile to maximum intensity:
+              auto gv = is_tile_single_valued ? 255 : src[y * src_stride + x];
 
                 // convert to color
-                auto r = b_color.r * (gv / (std::pow(2, 8) - 1));
-                auto g = b_color.g * (gv / (std::pow(2, 8) - 1));
-                auto b = b_color.b * (gv / (std::pow(2, 8) - 1));
+                auto r = b_color.r * (gv / 255.0);
+                auto g = b_color.g * (gv / 255.0);
+                auto b = b_color.b * (gv / 255.0);
 
                 // fill output array and clip value between 0...255
                 dst_row_p[x * out_channels] = static_cast<uint8_t>(std::min(255, std::max(0, static_cast<int>(r +
