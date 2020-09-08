@@ -33,7 +33,7 @@ RUN sed -Ei 's/^# deb-src /deb-src /' /etc/apt/sources.list && \
     apt-get -y build-dep iipimage
 
 WORKDIR /usr/src/iipsrv
-RUN git clone https://github.com/kmlvision/iipsrv.git . && git checkout tags/iipsrv-1.2.0 && sh autogen.sh && ./configure && make -j2
+RUN git clone https://github.com/kmlvision/iipsrv.git . && git checkout tags/iipsrv-1.2.1 && sh autogen.sh && ./configure && make -j2
 RUN cp ./src/iipsrv.fcgi /usr/local/bin/iipsrv.fcgi
 RUN ldconfig -v
 
